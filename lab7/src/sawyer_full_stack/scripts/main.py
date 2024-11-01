@@ -19,10 +19,11 @@ from controllers.controllers import (
 from utils.utils import *
 
 from trac_ik_python.trac_ik import IK
-
+from controllers.throw import *
 import rospy
 import tf2_ros
 import intera_interface
+from intera_interface import gripper as robot_gripper
 from moveit_msgs.msg import DisplayTrajectory, RobotState
 from sawyer_pykdl import sawyer_kinematics
 
@@ -99,6 +100,7 @@ python main.py -task line -ar_marker 13 --logng
     -------
     :obj:`moveit_msgs.msg.RobotTrajectory`
     """
+    print(tag_pos)
     num_way = args.num_way
     task = args.task
 
@@ -115,7 +117,7 @@ python main.py -task line -ar_marker 13 --logng
 
     if task == 'line':
         target_pos = tag_pos[0]
-        target_pos[2] += 0.4 #linear path moves to a Z position above AR Tag.
+        target_pos[2] += 0.3 #linear path moves to a Z position above AR Tag.
         print("TARGET POSITION:", target_pos)
         trajectory = LinearTrajectory(start_position=current_position, goal_position=target_pos, total_time=9)
     elif task == 'circle':
@@ -126,6 +128,9 @@ python main.py -task line -ar_marker 13 --logng
 
     else:
         raise ValueError('task {} not recognized'.format(task))
+    print("WEGEG")
+    print(trajectory.total_time)
+    print(trajectory.goal_position)
     
     path = MotionPath(limb, kin, ik_solver, trajectory)
     return path.to_robot_trajectory(num_way, True)
@@ -202,12 +207,14 @@ def main():
 
     # Lookup the AR tag position.
     tag_pos = [lookup_tag(marker) for marker in args.ar_marker]
+    print("tag_pos", tag_pos)
 
     # Get an appropriate RobotTrajectory for the task (circular, linear, or square)
     # If the controller is a workspace controller, this should return a trajectory where the
     # positions and velocities are workspace positions and velocities.  If the controller
     # is a jointspace or torque controller, it should return a trajectory where the positions
     # and velocities are the positions and velocities of each joint.
+    
     robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args)
 
     # This is a wrapper around MoveIt! for you to use.  We use MoveIt! to go to the start position
@@ -228,30 +235,127 @@ def main():
     if args.controller_name != "moveit":
         plan = planner.retime_trajectory(plan, 0.3)
     planner.execute_plan(plan[1])
+    
 
-    if args.controller_name == "moveit":
-        try:
-            input('Press <Enter> to execute the trajectory using MOVEIT')
-        except KeyboardInterrupt:
-            sys.exit()
-        # Uses MoveIt! to execute the trajectory.
+
+    # if args.controller_name == "moveit":
+    #     try:
+    #         input('Press <Enter> to execute the trajectory using MOVEIT')
+    #     except KeyboardInterrupt:
+    #         sys.exit()
+    #     # Uses MoveIt! to execute the trajectory.
+    #     planner.execute_plan(robot_trajectory)
+    # else:
+    #     controller = get_controller(args.controller_name, limb, kin)
+    #     try:
+    #         input('Press <Enter> to execute the trajectory using YOUR OWN controller')
+    #     except KeyboardInterrupt:
+    #         sys.exit()
+    #     # execute the path using your own controller.
+    #     done = controller.execute_path(
+    #         robot_trajectory, 
+    #         rate=args.rate, 
+    #         timeout=args.timeout, 
+    #         log=args.log
+    #     )
+    #     if not done:
+    #         print('Failed to move to position')
+    #         sys.exit(0)
+    # right_gripper = robot_gripper.Gripper('right_gripper')
+
+    # # open close then go to inital setup
+    # right_gripper.open()
+    # rospy.sleep(2.0)
+    # print('Done!')
+
+    # # Close the right gripper
+    # print('Closing...')
+    # right_gripper.close()
+    # rospy.sleep(1.0)
+
+    try:
+        # input("move to init state")
+      
+        c = [float(i) for i in input("Give: ").split(" ")]
+        joint5 = 0.0
+        print(c)
+        if c and c in ['\x1b', '\x03']:
+            done = True
+            rospy.signal_shutdown("Example finished.")
+        if c and len(c) == 7:
+            
+            d = {}
+            d['right_j0'] = c[0]
+            d['right_j1'] = c[1]
+            d['right_j2'] = c[2]
+            d['right_j3'] = c[3]
+            d['right_j4'] = c[4]
+            d['right_j5'] = c[5]
+            d['right_j6'] = c[6]
+            joint5 = float(c[5])
+            r = rospy.Rate(10) # 10hz
+
+            limb.set_joint_position_speed(0.3)
+            curr = limb.joint_angles()
+            
+            while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+                limb.set_joint_positions(d)
+                time.sleep(0.01)
+                curr = limb.joint_angles()
+        # desired_pose = limb.endpoint_pose()
+        throw_pos = [np.array([0.3525424805992139, 0.621443620620734, 0.8363324261047387])]
+        print(throw_pos, type(throw_pos))
+        robot_trajectory = get_trajectory(limb, kin, ik_solver, throw_pos, args)
+        disp_traj = DisplayTrajectory()
+        disp_traj.trajectory.append(robot_trajectory)
+        disp_traj.trajectory_start = RobotState()
+        pub.publish(disp_traj)
+
+        planner = PathPlanner('right_arm')
         planner.execute_plan(robot_trajectory)
-    else:
-        controller = get_controller(args.controller_name, limb, kin)
-        try:
-            input('Press <Enter> to execute the trajectory using YOUR OWN controller')
-        except KeyboardInterrupt:
-            sys.exit()
-        # execute the path using your own controller.
-        done = controller.execute_path(
-            robot_trajectory, 
-            rate=args.rate, 
-            timeout=args.timeout, 
-            log=args.log
-        )
-        if not done:
-            print('Failed to move to position')
-            sys.exit(0)
+
+
+        right_gripper.open()
+        print('Done!')
+
+        # c2 = [float(i) for i in input("Give: ").split(" ")]
+        # joint5 = 0.0
+        # print(c2)
+        # if c2 and c2 in ['\x1b', '\x03']:
+        #     done = True
+        #     rospy.signal_shutdown("Example finished.")
+        # if c2 and len(c2) == 7:
+            
+        #     d = {}
+        #     d['right_j0'] = c2[0]
+        #     d['right_j1'] = c2[1]
+        #     d['right_j2'] = c2[2]
+        #     d['right_j3'] = c2[3]
+        #     d['right_j4'] = c2[4]
+        #     d['right_j5'] = c2[5]
+        #     d['right_j6'] = c2[6]
+        #     joint5 = float(c2[5])
+        #     r = rospy.Rate(10) # 10hz
+
+        #     limb.set_joint_position_speed(0.5)
+        #     curr = limb.joint_angles()
+        #     # for i in range(100):
+        #     #     limb.set_joint_positions(d)
+        #     #     time.sleep(0.01)
+   
+        #     while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+        #         limb.set_joint_positions(d)
+        #         time.sleep(0.01)
+        #         curr = limb.joint_angles()
+
+        
+       
+    except KeyboardInterrupt:
+        sys.exit()
+    robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args)
+    planner.execute_plan(robot_trajectory)
+
+        
 
 if __name__ == "__main__":
     main()

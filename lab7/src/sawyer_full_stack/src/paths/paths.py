@@ -147,10 +147,12 @@ class MotionPath:
         """
         point = JointTrajectoryPoint()
         delta_t = .01
+
         if jointspace:
             theta_t_2 = self.ik_service_client(self.trajectory.target_pose(max(t-2*delta_t, 0)))            
             theta_t_1 = self.ik_service_client(self.trajectory.target_pose(max(t-delta_t, 0)))
             theta_t   = self.ik_service_client(self.trajectory.target_pose(t))
+            # print(theta_t_2, theta_t_1, theta_t)
             
             # we said you shouldn't simply take a finite difference when creating
             # the path, why do you think we're doing that here?
