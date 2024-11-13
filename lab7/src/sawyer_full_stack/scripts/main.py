@@ -19,13 +19,15 @@ from controllers.controllers import (
 from utils.utils import *
 
 from trac_ik_python.trac_ik import IK
-from controllers.throw import *
+
 import rospy
 import tf2_ros
 import intera_interface
-from intera_interface import gripper as robot_gripper
 from moveit_msgs.msg import DisplayTrajectory, RobotState
 from sawyer_pykdl import sawyer_kinematics
+import cv2
+from cv_bridge import CvBridge, CvBridgeError
+
 
 
 def tuck():
@@ -58,41 +60,34 @@ def lookup_tag(tag_number):
     3x' :obj:`numpy.ndarray`
         tag position
     """
-    # tag_pos = [0.661, 0.025, -.215]
-    # # tag_pos = [getattr(trans.transform.translation, dim) for dim in ('x', 'y', 'z')]
-    # return np.array(tag_pos)
 
     
     # TODO: initialize a tf buffer and listener as in lab 3
-    # pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+
     tfBuffer = tf2_ros.Buffer()
     tfListener = tf2_ros.TransformListener(tfBuffer)
- 
 
     try:
         # TODO: lookup the transform and save it in trans
         # The rospy.Time(0) is the latest available 
         # The rospy.Duration(10.0) is the amount of time to wait for the transform to be available before throwing an exception
-        trans = tfBuffer.lookup_transform('base',f'ar_marker_{tag_number}', rospy.Time(0), rospy.Duration(10.0))
-    except Exception as e:
+        ar_tag_frame = "ar_marker_" + str(tag_number)
+        trans = tfBuffer.lookup_transform("base", ar_tag_frame, rospy.Time(0), rospy.Duration(10.0))
+    except Exception as e: 
         print(e)
         print("Retrying ...")
+
     tag_pos = [getattr(trans.transform.translation, dim) for dim in ('x', 'y', 'z')]
     return np.array(tag_pos)
 
-
-    
-
-def get_trajectory(limb, kin, ik_solver, tag_pos, args):
+def get_trajectory(limb, kin, ik_solver, tag_pos, args, move_time, hang_time=0):
     """
     Returns an appropriate robot trajectory for the specified task.  You should 
     be implementing the path functions in paths.py and call them here
     
     Parameters
     ----------
-    task : strisource ~ee106a/sawyer_setup.bash
-source devel/setup.bash
-python main.py -task line -ar_marker 13 --logng
+    task : string
         name of the task.  Options: line, circle, square
     tag_pos : 3x' :obj:`numpy.ndarray`
         
@@ -100,7 +95,6 @@ python main.py -task line -ar_marker 13 --logng
     -------
     :obj:`moveit_msgs.msg.RobotTrajectory`
     """
-    print(tag_pos)
     num_way = args.num_way
     task = args.task
 
@@ -117,9 +111,9 @@ python main.py -task line -ar_marker 13 --logng
 
     if task == 'line':
         target_pos = tag_pos[0]
-        target_pos[2] += 0.3 #linear path moves to a Z position above AR Tag.
+        target_pos[2] += 0.4 #linear path moves to a Z position above AR Tag.
         print("TARGET POSITION:", target_pos)
-        trajectory = LinearTrajectory(start_position=current_position, goal_position=target_pos, total_time=9)
+        trajectory = LinearTrajectory(start_position=current_position, goal_position=target_pos, total_time=move_time)
     elif task == 'circle':
         target_pos = tag_pos[0]
         target_pos[2] += 0.5
@@ -128,12 +122,9 @@ python main.py -task line -ar_marker 13 --logng
 
     else:
         raise ValueError('task {} not recognized'.format(task))
-    print("WEGEG")
-    print(trajectory.total_time)
-    print(trajectory.goal_position)
     
     path = MotionPath(limb, kin, ik_solver, trajectory)
-    return path.to_robot_trajectory(num_way, True)
+    return path.to_robot_trajectory(num_way, True, hang_time)
 
 def get_controller(controller_name, limb, kin):
     """
@@ -159,6 +150,29 @@ def get_controller(controller_name, limb, kin):
         raise ValueError('Controller {} not recognized'.format(controller_name))
     return controller
 
+def show_image_callback(img_data, xxx_todo_changeme):
+    """The callback function to show image by using CvBridge and cv
+    """
+    (edge_detection, window_name) = xxx_todo_changeme
+    bridge = CvBridge()
+    try:
+        cv_image = bridge.imgmsg_to_cv2(img_data, "bgr8")
+    except CvBridgeError as err:
+        rospy.logerr(err)
+        return
+    if edge_detection == True:
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+        # customize the second and the third argument, minVal and maxVal
+        # in function cv2.Canny if needed
+        get_edge = cv2.Canny(blurred, 10, 100)
+        cv_image = np.hstack([get_edge])
+    edge_str = "(Edge Detection)" if edge_detection else ''
+    cv_win_name = ' '.join([window_name, edge_str])
+    cv2.namedWindow(cv_win_name, 0)
+    # refresh the image on the screen
+    cv2.imshow(cv_win_name, cv_image)
+    cv2.waitKey(3)
 
 def main():
     """
@@ -201,21 +215,56 @@ def main():
     tuck()
     
     # this is used for sending commands (velocity, torque, etc) to the robot
-    ik_solver = IK("base", "right_gripper_tip")
+    ik_solver = IK("base", "right_hand")
     limb = intera_interface.Limb("right")
     kin = sawyer_kinematics("right")
 
-    # Lookup the AR tag position.
+    right_gripper = intera_interface.gripper.Gripper('right_gripper')
+
+    # Lookup the Ball position. (TODO)
+
+    # rp = intera_interface.RobotParams()
+    # valid_cameras = rp.get_camera_names()
+    # if not valid_cameras:
+    #     rp.log_message(("Cannot detect any camera_config"
+    #         " parameters on this robot. Exiting."), "ERROR")
+    #     return
+    
+    # rospy.init_node('camera_display', anonymous=True)
+
+    # cameras = intera_interface.Cameras()
+    # if not cameras.verify_camera_exists("right_hand_camera"):
+    #     rospy.logerr("Could not detect the specified camera, exiting the example.")
+    #     return
+
+    # rospy.loginfo("Opening camera '{0}'...".format("right_hand_camera"))
+
+    # cameras.start_streaming("right_hand_camera")
+
+    # cameras.set_callback("right_hand_camera", show_image_callback,
+    #     rectify_image=False, callback_args=(False, "right_hand_camera"))
+
+    # def clean_shutdown():
+    #     print("Shutting down camera_display node.")
+    #     cv2.destroyAllWindows()
+
+    # rospy.on_shutdown(clean_shutdown)
+    # rospy.loginfo("Camera_display node running. Ctrl-c to quit")
+    # rospy.spin()
+
     tag_pos = [lookup_tag(marker) for marker in args.ar_marker]
-    print("tag_pos", tag_pos)
+    print("TAG POS", tag_pos)
+    custom_pos = np.array([[ 0.66102282, -0.04862739 , -0.27649643]])
+    print("CUSTOM", custom_pos)
+
 
     # Get an appropriate RobotTrajectory for the task (circular, linear, or square)
     # If the controller is a workspace controller, this should return a trajectory where the
     # positions and velocities are workspace positions and velocities.  If the controller
     # is a jointspace or torque controller, it should return a trajectory where the positions
     # and velocities are the positions and velocities of each joint.
+    robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args, 2)
     
-    robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args)
 
     # This is a wrapper around MoveIt! for you to use.  We use MoveIt! to go to the start position
     # of the trajectory
@@ -225,6 +274,24 @@ def main():
     # be able to view it in RViz.  You will have to click the "loop animation" setting in 
     # the planned path section of MoveIt! in the menu on the left side of the screen.
     pub = rospy.Publisher('move_group/display_planned_path', DisplayTrajectory, queue_size=10)
+    
+    move_to_spot(pub, robot_trajectory, planner, args, limb, kin)
+
+    right_gripper.open()
+
+    rospy.sleep(2.0)
+
+
+    right_gripper.close()
+
+    robot_trajectory2 = get_trajectory(limb, kin, ik_solver, custom_pos, args, 1)
+
+    move_to_spot(pub, robot_trajectory2, planner, args, limb, kin)
+
+
+
+
+def move_to_spot(pub, robot_trajectory, planner, args, limb, kin):
     disp_traj = DisplayTrajectory()
     disp_traj.trajectory.append(robot_trajectory)
     disp_traj.trajectory_start = RobotState()
@@ -234,128 +301,32 @@ def main():
     plan = planner.plan_to_joint_pos(robot_trajectory.joint_trajectory.points[0].positions)
     if args.controller_name != "moveit":
         plan = planner.retime_trajectory(plan, 0.3)
-    planner.execute_plan(plan[1])
-    
-
-
-    # if args.controller_name == "moveit":
-    #     try:
-    #         input('Press <Enter> to execute the trajectory using MOVEIT')
-    #     except KeyboardInterrupt:
-    #         sys.exit()
-    #     # Uses MoveIt! to execute the trajectory.
-    #     planner.execute_plan(robot_trajectory)
-    # else:
-    #     controller = get_controller(args.controller_name, limb, kin)
-    #     try:
-    #         input('Press <Enter> to execute the trajectory using YOUR OWN controller')
-    #     except KeyboardInterrupt:
-    #         sys.exit()
-    #     # execute the path using your own controller.
-    #     done = controller.execute_path(
-    #         robot_trajectory, 
-    #         rate=args.rate, 
-    #         timeout=args.timeout, 
-    #         log=args.log
-    #     )
-    #     if not done:
-    #         print('Failed to move to position')
-    #         sys.exit(0)
-    # right_gripper = robot_gripper.Gripper('right_gripper')
-
-    # # open close then go to inital setup
-    # right_gripper.open()
-    # rospy.sleep(2.0)
-    # print('Done!')
-
-    # # Close the right gripper
-    # print('Closing...')
-    # right_gripper.close()
-    # rospy.sleep(1.0)
-
-    try:
-        # input("move to init state")
-      
-        c = [float(i) for i in input("Give: ").split(" ")]
-        joint5 = 0.0
-        print(c)
-        if c and c in ['\x1b', '\x03']:
-            done = True
-            rospy.signal_shutdown("Example finished.")
-        if c and len(c) == 7:
-            
-            d = {}
-            d['right_j0'] = c[0]
-            d['right_j1'] = c[1]
-            d['right_j2'] = c[2]
-            d['right_j3'] = c[3]
-            d['right_j4'] = c[4]
-            d['right_j5'] = c[5]
-            d['right_j6'] = c[6]
-            joint5 = float(c[5])
-            r = rospy.Rate(10) # 10hz
-
-            limb.set_joint_position_speed(0.3)
-            curr = limb.joint_angles()
-            
-            while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
-                limb.set_joint_positions(d)
-                time.sleep(0.01)
-                curr = limb.joint_angles()
-        # desired_pose = limb.endpoint_pose()
-        throw_pos = [np.array([0.3525424805992139, 0.621443620620734, 0.8363324261047387])]
-        print(throw_pos, type(throw_pos))
-        robot_trajectory = get_trajectory(limb, kin, ik_solver, throw_pos, args)
-        disp_traj = DisplayTrajectory()
-        disp_traj.trajectory.append(robot_trajectory)
-        disp_traj.trajectory_start = RobotState()
-        pub.publish(disp_traj)
-
-        planner = PathPlanner('right_arm')
-        planner.execute_plan(robot_trajectory)
-
-
-        right_gripper.open()
-        print('Done!')
-
-        # c2 = [float(i) for i in input("Give: ").split(" ")]
-        # joint5 = 0.0
-        # print(c2)
-        # if c2 and c2 in ['\x1b', '\x03']:
-        #     done = True
-        #     rospy.signal_shutdown("Example finished.")
-        # if c2 and len(c2) == 7:
-            
-        #     d = {}
-        #     d['right_j0'] = c2[0]
-        #     d['right_j1'] = c2[1]
-        #     d['right_j2'] = c2[2]
-        #     d['right_j3'] = c2[3]
-        #     d['right_j4'] = c2[4]
-        #     d['right_j5'] = c2[5]
-        #     d['right_j6'] = c2[6]
-        #     joint5 = float(c2[5])
-        #     r = rospy.Rate(10) # 10hz
-
-        #     limb.set_joint_position_speed(0.5)
-        #     curr = limb.joint_angles()
-        #     # for i in range(100):
-        #     #     limb.set_joint_positions(d)
-        #     #     time.sleep(0.01)
    
-        #     while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
-        #         limb.set_joint_positions(d)
-        #         time.sleep(0.01)
-        #         curr = limb.joint_angles()
+    planner.execute_plan(plan[1])
 
-        
-       
-    except KeyboardInterrupt:
-        sys.exit()
-    robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args)
-    planner.execute_plan(robot_trajectory)
-
-        
+    if args.controller_name == "moveit":
+        try:
+            input('Press <Enter> to execute the trajectory using MOVEIT')
+        except KeyboardInterrupt:
+            sys.exit()
+        # Uses MoveIt! to execute the trajectory.
+        planner.execute_plan(robot_trajectory)
+    else:
+        controller = get_controller(args.controller_name, limb, kin)
+        try:
+            input('Press <Enter> to execute the trajectory using YOUR OWN controller')
+        except KeyboardInterrupt:
+            sys.exit()
+        # execute the path using your own controller.
+        done = controller.execute_path(
+            robot_trajectory, 
+            rate=args.rate, 
+            timeout=args.timeout, 
+            log=args.log
+        )
+        if not done:
+            print('Failed to move to position')
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
