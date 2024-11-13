@@ -1,2 +1,2 @@
-ik:move_arm:planning
+catchthrow:ik:move_arm:planning
 -DCATKIN_DEVEL_PREFIX=/home/cc/ee106a/fa24/class/ee106a-ail/project/devel -DCMAKE_INSTALL_PREFIX=/home/cc/ee106a/fa24/class/ee106a-ail/project/install -G Unix Makefiles

@@ -80,7 +80,7 @@ def lookup_tag(tag_number):
     tag_pos = [getattr(trans.transform.translation, dim) for dim in ('x', 'y', 'z')]
     return np.array(tag_pos)
 
-def get_trajectory(limb, kin, ik_solver, tag_pos, args, move_time, hang_time=0):
+def get_trajectory(limb, kin, ik_solver, tag_pos, args, move_time, hang_time=0, gripper_orient=np.array([0, 1, 0, 0])):
     """
     Returns an appropriate robot trajectory for the specified task.  You should 
     be implementing the path functions in paths.py and call them here
@@ -113,7 +113,7 @@ def get_trajectory(limb, kin, ik_solver, tag_pos, args, move_time, hang_time=0):
         target_pos = tag_pos[0]
         target_pos[2] += 0.4 #linear path moves to a Z position above AR Tag.
         print("TARGET POSITION:", target_pos)
-        trajectory = LinearTrajectory(start_position=current_position, goal_position=target_pos, total_time=move_time)
+        trajectory = LinearTrajectory(start_position=current_position, goal_position=target_pos, total_time=move_time, orientation=gripper_orient)
     elif task == 'circle':
         target_pos = tag_pos[0]
         target_pos[2] += 0.5
@@ -256,13 +256,7 @@ def main():
     print("TAG POS", tag_pos)
     custom_pos = np.array([[ 0.66102282, -0.04862739 , -0.27649643]])
     print("CUSTOM", custom_pos)
-
-
-    # Get an appropriate RobotTrajectory for the task (circular, linear, or square)
-    # If the controller is a workspace controller, this should return a trajectory where the
-    # positions and velocities are workspace positions and velocities.  If the controller
-    # is a jointspace or torque controller, it should return a trajectory where the positions
-    # and velocities are the positions and velocities of each joint.
+    setup_pos = np.array([[ 0.4, 0.4,0.4 ]])
     robot_trajectory = get_trajectory(limb, kin, ik_solver, tag_pos, args, 2)
     
 
@@ -275,19 +269,43 @@ def main():
     # the planned path section of MoveIt! in the menu on the left side of the screen.
     pub = rospy.Publisher('move_group/display_planned_path', DisplayTrajectory, queue_size=10)
     
-    move_to_spot(pub, robot_trajectory, planner, args, limb, kin)
 
-    right_gripper.open()
+    # move_to_spot(pub, robot_trajectory, planner, args, limb, kin)
 
-    rospy.sleep(2.0)
+    # right_gripper.open()
+
+    # rospy.sleep(2.0)
 
 
-    right_gripper.close()
+    # right_gripper.close()
 
-    robot_trajectory2 = get_trajectory(limb, kin, ik_solver, custom_pos, args, 1)
+    # robot_trajectory2 = get_trajectory(limb, kin, ik_solver, custom_pos, args, 1)
 
-    move_to_spot(pub, robot_trajectory2, planner, args, limb, kin)
+    # move_to_spot(pub, robot_trajectory2, planner, args, limb, kin)
 
+    robot_trajectory3 = get_trajectory(limb, kin, ik_solver, setup_pos, args, 10)
+
+    move_to_spot(pub, robot_trajectory3, planner, args, limb, kin)
+
+    orient_gripper = np.array([0,0,0,1])
+    setup_pos2 = np.array([[ 0.4, 0.4,0.35 ]])
+    robot_trajectory4 = get_trajectory(limb, kin, ik_solver, setup_pos2, args, 20, hang_time = 0, gripper_orient=orient_gripper)
+
+    move_to_spot(pub, robot_trajectory4, planner, args, limb, kin)
+
+    
+
+    # move to setup throw position
+    # setup_joints = [0.641, -1.165 -1.435, 1.498, 0.617, 1.824, 2.537]
+    # plan = planner.plan_to_joint_pos(setup_joints)
+    # try:
+    #     input('Press <Enter> to execute the trajectory using MOVEIT')
+    #     planner.execute_plan(plan[1])
+    # except KeyboardInterrupt:
+    #     sys.exit()
+    
+
+    
 
 
 
@@ -296,15 +314,14 @@ def move_to_spot(pub, robot_trajectory, planner, args, limb, kin):
     disp_traj.trajectory.append(robot_trajectory)
     disp_traj.trajectory_start = RobotState()
     pub.publish(disp_traj)
-
+    print(robot_trajectory.joint_trajectory.points[0].positions)
     # Move to the trajectory start position
     plan = planner.plan_to_joint_pos(robot_trajectory.joint_trajectory.points[0].positions)
+  
     if args.controller_name != "moveit":
         plan = planner.retime_trajectory(plan, 0.3)
-   
     planner.execute_plan(plan[1])
-
-    if args.controller_name == "moveit":
+    if args.controller_name=="moveit":
         try:
             input('Press <Enter> to execute the trajectory using MOVEIT')
         except KeyboardInterrupt:

@@ -105,7 +105,7 @@ def map_keyboard(side):
         joint5 = float(c[5])
         r = rospy.Rate(10) # 10hz
 
-        limb.set_joint_position_speed(0.5)
+        limb.set_joint_position_speed(0.1)
         curr = limb.joint_angles()
         # for i in range(100):
         #     limb.set_joint_positions(d)
@@ -133,34 +133,45 @@ def map_keyboard(side):
     if input2:
         d['right_j5'] = input2[0]
         d['right_j3'] = input2[1]
-        d['right_j1'] = input2[2]
+        # d['right_j1'] = input2[2]
         
         r = rospy.Rate(10) # 10hz
-        print("input2: ", input2)
+        # print("input2: ", input2)
         print("c5: ", joint5)
         print("float: ", joint5)
         
         #angle_diff = abs(joint5 - float(input2))
         #d['right_j5'] = float(input2)
         gripper_opened = False
-
-        limb.set_joint_position_speed(90)
+       
+        velocity = {}
+        for i in d:
+            if i=='right_j5':
+                velocity[i] = 20
+            else:
+                velocity[i]=0
+        # limb.set_joint_velocities(velocities)
         cvals = list(limb.joint_angles().values())
         dvals = list(d.values())
         og_diff = abs(float(d['right_j3'])-limb.joint_angle('right_j3'))
         print("og", og_diff)
+        count = 0
         while not np.allclose(cvals, dvals, atol=0.1):
-            limb.set_joint_positions(d)
+            limb.set_joint_velocities(velocity)
+            # limb.set_joint_positions(d)
             time.sleep(0.001)
             cvals = list(limb.joint_angles().values())
             # max_diff = max([abs(cvals[j]-dvals[j]) for j in range(len(cvals))])
-            diff = abs(float(d['right_j3'])-limb.joint_angle('right_j3'))
             # print("m", max_diff)
-            print("diff", diff)
-            if diff < og_diff*(1-2/5):
-                print("do", diff)
+            # print("diff", diff)
+            # if diff < og_diff*(1-2/5):
+            #     print("do", diff)
+            if count==310:
                 right_gripper.open()
 
+            
+            count+=1
+        
         
 
 def main():
