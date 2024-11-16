@@ -28,7 +28,7 @@ from intera_interface import gripper as robot_gripper
 import time
 
 
-def map_keyboard(side):
+def throw(side):
     right_gripper = robot_gripper.Gripper('right_gripper')
     limb = intera_interface.Limb(side)
 
@@ -84,6 +84,10 @@ def map_keyboard(side):
         '9': (set_g, "calibrate", side+" gripper calibrate")
         })
     done = False
+
+
+
+    detect_ball()
     
     print("Controlling joints. Press ? for help, Esc to quit.")
     ### SET ROBOT TO INITIAL THROWING POSITION ###
@@ -165,7 +169,39 @@ def map_keyboard(side):
         #     velocityZeros[i]=0
         # limb.set_joint_velocities(velocityZeros)
 
-        
+
+def detect_ball(side):
+    # Lookup the Ball position. (TODO)
+
+    # rp = intera_interface.RobotParams()
+    # valid_cameras = rp.get_camera_names()
+    # if not valid_cameras:
+    #     rp.log_message(("Cannot detect any camera_config"
+    #         " parameters on this robot. Exiting."), "ERROR")
+    #     return
+    
+    # rospy.init_node('camera_display', anonymous=True)
+
+    # cameras = intera_interface.Cameras()
+    # if not cameras.verify_camera_exists("right_hand_camera"):
+    #     rospy.logerr("Could not detect the specified camera, exiting the example.")
+    #     return
+
+    # rospy.loginfo("Opening camera '{0}'...".format("right_hand_camera"))
+
+    # cameras.start_streaming("right_hand_camera")
+
+    # cameras.set_callback("right_hand_camera", show_image_callback,
+    #     rectify_image=False, callback_args=(False, "right_hand_camera"))
+
+    # def clean_shutdown():
+    #     print("Shutting down camera_display node.")
+    #     cv2.destroyAllWindows()
+
+    # rospy.on_shutdown(clean_shutdown)
+    # rospy.loginfo("Camera_display node running. Ctrl-c to quit")
+    # rospy.spin()
+
         
 
 def main():
@@ -210,7 +246,7 @@ See help inside the example with the '?' key for key bindings.
 
     rospy.loginfo("Enabling robot...")
     rs.enable()
-    map_keyboard(args.limb)
+    throw(args.limb)
     print("Done.")
 
 

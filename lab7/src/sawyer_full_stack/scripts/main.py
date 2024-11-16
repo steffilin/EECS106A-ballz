@@ -221,37 +221,6 @@ def main():
 
     right_gripper = intera_interface.gripper.Gripper('right_gripper')
 
-    # Lookup the Ball position. (TODO)
-
-    # rp = intera_interface.RobotParams()
-    # valid_cameras = rp.get_camera_names()
-    # if not valid_cameras:
-    #     rp.log_message(("Cannot detect any camera_config"
-    #         " parameters on this robot. Exiting."), "ERROR")
-    #     return
-    
-    # rospy.init_node('camera_display', anonymous=True)
-
-    # cameras = intera_interface.Cameras()
-    # if not cameras.verify_camera_exists("right_hand_camera"):
-    #     rospy.logerr("Could not detect the specified camera, exiting the example.")
-    #     return
-
-    # rospy.loginfo("Opening camera '{0}'...".format("right_hand_camera"))
-
-    # cameras.start_streaming("right_hand_camera")
-
-    # cameras.set_callback("right_hand_camera", show_image_callback,
-    #     rectify_image=False, callback_args=(False, "right_hand_camera"))
-
-    # def clean_shutdown():
-    #     print("Shutting down camera_display node.")
-    #     cv2.destroyAllWindows()
-
-    # rospy.on_shutdown(clean_shutdown)
-    # rospy.loginfo("Camera_display node running. Ctrl-c to quit")
-    # rospy.spin()
-
     tag_pos = [lookup_tag(marker) for marker in args.ar_marker]
     print("TAG POS", tag_pos)
     custom_pos = np.array([[ 0.66102282, -0.04862739 , -0.27649643]])
@@ -292,19 +261,6 @@ def main():
     robot_trajectory4 = get_trajectory(limb, kin, ik_solver, setup_pos2, args, 20, hang_time = 0, gripper_orient=orient_gripper)
 
     move_to_spot(pub, robot_trajectory4, planner, args, limb, kin)
-
-    
-
-    # move to setup throw position
-    # setup_joints = [0.641, -1.165 -1.435, 1.498, 0.617, 1.824, 2.537]
-    # plan = planner.plan_to_joint_pos(setup_joints)
-    # try:
-    #     input('Press <Enter> to execute the trajectory using MOVEIT')
-    #     planner.execute_plan(plan[1])
-    # except KeyboardInterrupt:
-    #     sys.exit()
-    
-
     
 
 
