@@ -25,7 +25,7 @@ source ~ee106a/sawyer_setup.bash
 source devel/setup.bash
 python main.py -task line -ar_marker 13 --log
 
-
+rosrun catchthrow thrower.py
 roslaunch sawyer_full_stack sawyer_camera_track.launch
 roslaunch sawyer_moveit_config sawyer_moveit.launch electric_gripper:=true
 rosrun intera_interface joint_t input2[0]rajectory_action_server.py
@@ -42,7 +42,8 @@ python main.py -task line -ar_marker 12 -controller_name open_loop --log
 python main.py -task line -ar_marker 12 -c pid --log
 
 thrower:
-.5 -1 0 1 0 -2.8 1.7
+.5 -1 0 1 0 -2.8 1.7 overhead to our right
+-.5 -0.4 0 1.8 0 2.4 1.7 underhand to our left
 
 1.194 -0.034 -2.122 1.431 0.9182 1.715 -0.345
 
@@ -53,6 +54,11 @@ then go to
 5 to -2
 3 to 1
 
+
+
+5 to 0
+3 to 1
+1 to -1
 
 for catcher want 0 to be .5 but for now im putting on lhs to avoid wall lol
 

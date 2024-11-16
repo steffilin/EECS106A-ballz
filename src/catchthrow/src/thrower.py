@@ -41,18 +41,17 @@ def map_keyboard(side):
         has_gripper = True
 
     joints = limb.joint_names()
-    print(joints)
 
     def set_j(limb, joint_name, delta, speed):
         current_position = limb.joint_angle(joint_name)
         joint_command = {joint_name: current_position + delta}
         print("Executing" + str(joint_command))
+        # default 0.3
         limb.set_joint_position_speed(speed)
         # default 0.1
         limb.set_joint_positions(joint_command)
 
         
-
     def set_g(action):
         if has_gripper:
             if action == "close":
@@ -87,14 +86,13 @@ def map_keyboard(side):
     done = False
     
     print("Controlling joints. Press ? for help, Esc to quit.")
+    ### SET ROBOT TO INITIAL THROWING POSITION ###
     c = [float(i) for i in input("Give: ").split(" ")]
     joint5 = 0.0
-    print(c)
     if c and c in ['\x1b', '\x03']:
         done = True
         rospy.signal_shutdown("Example finished.")
-    if c and len(c) == 7:
-        
+    if c and len(c) == 7: 
         d = {}
         d['right_j0'] = c[0]
         d['right_j1'] = c[1]
@@ -102,24 +100,19 @@ def map_keyboard(side):
         d['right_j3'] = c[3]
         d['right_j4'] = c[4]
         d['right_j5'] = c[5]
-        d['right_j6'] = c[6]
-        joint5 = float(c[5])
         r = rospy.Rate(10) # 10hz
 
-        limb.set_joint_position_speed(0.1)
+        limb.set_joint_position_speed(0.3)
         curr = limb.joint_angles()
-        # for i in range(100):
-        #     limb.set_joint_positions(d)
-        #     time.sleep(0.01)
-        
+
         while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
             limb.set_joint_positions(d)
-            time.sleep(0.01)
+            time.sleep(0.001)
             curr = limb.joint_angles()
             
 
     right_gripper.open()
-    rospy.sleep(2.0)
+    rospy.sleep(3.0)
     print('Done!')
 
     # Close the right gripper
@@ -127,6 +120,7 @@ def map_keyboard(side):
     right_gripper.close()
     rospy.sleep(1.0)
 
+    ### THROW BALL ###
     input2 = [float(i) for i in input("Give 5 and 3: ").split(" ")]
     if input2 and input2 in ['\x1b', '\x03']:
         done = True
@@ -134,44 +128,43 @@ def map_keyboard(side):
     if input2:
         d['right_j5'] = input2[0]
         d['right_j3'] = input2[1]
-        # d['right_j1'] = input2[2]
+        d['right_j1'] = input2[2]
         
         r = rospy.Rate(10) # 10hz
-        # print("input2: ", input2)
-        print("c5: ", joint5)
-        print("float: ", joint5)
-        
-        #angle_diff = abs(joint5 - float(input2))
-        #d['right_j5'] = float(input2)
-        gripper_opened = False
-       
+        master_vel = -50
         velocity = {}
         for i in d:
             if i=='right_j5':
-                velocity[i] = 20
+                velocity[i] = master_vel * 3
+            elif i == 'right_j3':
+                velocity[i] = master_vel * 0.7
+            elif i=='right_j1':
+                velocity[i] = master_vel * 0.025
             else:
                 velocity[i]=0
-        # limb.set_joint_velocities(velocities)
-        cvals = list(limb.joint_angles().values())
-        dvals = list(d.values())
-        og_diff = abs(float(d['right_j3'])-limb.joint_angle('right_j3'))
-        print("og", og_diff)
-        count = 0
-        while not np.allclose(cvals, dvals, atol=0.1):
-            limb.set_joint_velocities(velocity)
-            # limb.set_joint_positions(d)
-            time.sleep(0.001)
-            cvals = list(limb.joint_angles().values())
-            # max_diff = max([abs(cvals[j]-dvals[j]) for j in range(len(cvals))])
-            # print("m", max_diff)
-            # print("diff", diff)
-            # if diff < og_diff*(1-2/5):
-            #     print("do", diff)
-            if count==310:
-                right_gripper.open()
 
-            
+        # POSITION COMPARISONS
+        # cvals = list(limb.joint_angles().values())
+        # dvals = list(d.values())
+        # og_diff = abs(float(d['right_j3'])-limb.joint_angle('right_j3'))
+        # not np.allclose(cvals, dvals, atol=0.1)
+        # cvals = list(limb.joint_angles().values())
+        # max_diff = max([abs(cvals[j]-dvals[j]) for j in range(len(cvals))])
+        # print("m", max_diff)
+
+        count = 0
+        limb.set_joint_position_speed(1.0)
+        while count<330:
+            limb.set_joint_velocities(velocity)
+            time.sleep(0.001)
             count+=1
+
+        right_gripper.open()
+        # velocityZeros = {}
+        # for i in d:
+        #     velocityZeros[i]=0
+        # limb.set_joint_velocities(velocityZeros)
+
         
         
 
