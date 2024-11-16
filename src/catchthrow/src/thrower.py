@@ -85,6 +85,7 @@ def map_keyboard(side):
         '9': (set_g, "calibrate", side+" gripper calibrate")
         })
     done = False
+    
     print("Controlling joints. Press ? for help, Esc to quit.")
     c = [float(i) for i in input("Give: ").split(" ")]
     joint5 = 0.0
