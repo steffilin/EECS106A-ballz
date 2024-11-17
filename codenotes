@@ -1,7 +1,7 @@
 source /opt/ros/eecsbot_ws/devel/setup.bash
 roslaunch intera_examples sawyer_tuck.launch
 roslaunch sawyer_full_stack custom_sawyer_tuck.launch
-catkin_create_pkg {name} rospy moveit_msgs geometry_msgs intera_interface std_msgs
+catkin_create_pkg catchthrow rospy moveit_msgs geometry_msgs intera_interface std_msgs sensor_msgs cv_bridge roscpp image_transport OpenCV
 
 
 source ~ee106a/sawyer_setup.bash
@@ -70,7 +70,7 @@ catcher:
 
 
 [0.641, -1.165 -1.435, 1.498, 0.617, 1.824, 2.537]
-
+catkin
 
 
 
