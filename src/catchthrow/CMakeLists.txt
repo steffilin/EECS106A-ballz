@@ -17,6 +17,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  tf
+  tf2
+  tf2_geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -76,7 +79,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   geometry_msgs#   moveit_msgs#   sensor_msgs#   std_msgs
+#   geometry_msgs#   moveit_msgs#   sensor_msgs#   std_msgs#   tf2_geometry_msgs
 # )
 
 ################################################
@@ -111,7 +114,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES catchthrow
-#  CATKIN_DEPENDS cv_bridge geometry_msgs image_transport intera_interface moveit_msgs roscpp rospy sensor_msgs std_msgs
+#  CATKIN_DEPENDS cv_bridge geometry_msgs image_transport intera_interface moveit_msgs roscpp rospy sensor_msgs std_msgs tf tf2 tf2_geometry_msgs
 #  DEPENDS system_lib
 )
 
