@@ -403,20 +403,17 @@ actionlib_DIR:PATH=/opt/ros/noetic/share/actionlib/cmake
 //The directory containing a CMake configuration file for actionlib_msgs.
 actionlib_msgs_DIR:PATH=/opt/ros/noetic/share/actionlib_msgs/cmake
 
-//The directory containing a CMake configuration file for baxter_core_msgs.
-baxter_core_msgs_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/baxter_core_msgs/cmake
+//Value Computed by CMake
+catchthrow_BINARY_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/build/catchthrow
 
-//The directory containing a CMake configuration file for baxter_interface.
-baxter_interface_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/baxter_interface/cmake
-
-//The directory containing a CMake configuration file for baxter_maintenance_msgs.
-baxter_maintenance_msgs_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/baxter_maintenance_msgs/cmake
-
-//The directory containing a CMake configuration file for baxter_tools.
-baxter_tools_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/baxter_tools/cmake
+//Value Computed by CMake
+catchthrow_SOURCE_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/src/catchthrow
 
 //The directory containing a CMake configuration file for catkin.
 catkin_DIR:PATH=/opt/ros/noetic/share/catkin/cmake
+
+//The directory containing a CMake configuration file for class_loader.
+class_loader_DIR:PATH=/opt/ros/noetic/share/class_loader/cmake
 
 //The directory containing a CMake configuration file for control_msgs.
 control_msgs_DIR:PATH=/opt/ros/noetic/share/control_msgs/cmake
@@ -497,11 +494,8 @@ gtest_hide_internal_symbols:BOOL=OFF
 //Dependencies for the target
 gtest_main_LIB_DEPENDS:STATIC=general;gtest;
 
-//Value Computed by CMake
-ik_BINARY_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/build/ik
-
-//Value Computed by CMake
-ik_SOURCE_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/src/ik
+//The directory containing a CMake configuration file for image_transport.
+image_transport_DIR:PATH=/opt/ros/noetic/share/image_transport/cmake
 
 //The directory containing a CMake configuration file for intera_core_msgs.
 intera_core_msgs_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/intera_core_msgs/cmake
@@ -513,22 +507,13 @@ intera_interface_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/intera_interface/cmake
 intera_motion_msgs_DIR:PATH=/opt/ros/eecsbot_ws/devel/share/intera_motion_msgs/cmake
 
 //Path to a library.
-lib:FILEPATH=/opt/ros/noetic/lib/libtf2.so
+lib:FILEPATH=/opt/ros/noetic/lib/libdynamic_reconfigure_config_init_mutex.so
 
 //The directory containing a CMake configuration file for message_filters.
 message_filters_DIR:PATH=/opt/ros/noetic/share/message_filters/cmake
 
-//The directory containing a CMake configuration file for message_generation.
-message_generation_DIR:PATH=/opt/ros/noetic/share/message_generation/cmake
-
 //The directory containing a CMake configuration file for message_runtime.
 message_runtime_DIR:PATH=/opt/ros/noetic/share/message_runtime/cmake
-
-//Value Computed by CMake
-move_arm_BINARY_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/build/move_arm
-
-//Value Computed by CMake
-move_arm_SOURCE_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/src/move_arm
 
 //The directory containing a CMake configuration file for moveit_msgs.
 moveit_msgs_DIR:PATH=/opt/ros/noetic/share/moveit_msgs/cmake
@@ -539,11 +524,8 @@ object_recognition_msgs_DIR:PATH=/opt/ros/noetic/share/object_recognition_msgs/c
 //The directory containing a CMake configuration file for octomap_msgs.
 octomap_msgs_DIR:PATH=/opt/ros/noetic/share/octomap_msgs/cmake
 
-//Value Computed by CMake
-planning_BINARY_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/build/planning
-
-//Value Computed by CMake
-planning_SOURCE_DIR:STATIC=/home/cc/ee106a/fa24/class/ee106a-ail/project/src/planning
+//The directory containing a CMake configuration file for pluginlib.
+pluginlib_DIR:PATH=/opt/ros/noetic/share/pluginlib/cmake
 
 //The directory containing a CMake configuration file for rosconsole.
 rosconsole_DIR:PATH=/opt/ros/noetic/share/rosconsole/cmake
@@ -557,11 +539,14 @@ roscpp_serialization_DIR:PATH=/opt/ros/noetic/share/roscpp_serialization/cmake
 //The directory containing a CMake configuration file for roscpp_traits.
 roscpp_traits_DIR:PATH=/opt/ros/noetic/share/roscpp_traits/cmake
 
-//The directory containing a CMake configuration file for rosgraph.
-rosgraph_DIR:PATH=/opt/ros/noetic/share/rosgraph/cmake
-
 //The directory containing a CMake configuration file for rosgraph_msgs.
 rosgraph_msgs_DIR:PATH=/opt/ros/noetic/share/rosgraph_msgs/cmake
+
+//The directory containing a CMake configuration file for roslib.
+roslib_DIR:PATH=/opt/ros/noetic/share/roslib/cmake
+
+//The directory containing a CMake configuration file for rospack.
+rospack_DIR:PATH=/opt/ros/noetic/share/rospack/cmake
 
 //The directory containing a CMake configuration file for rospy.
 rospy_DIR:PATH=/opt/ros/noetic/share/rospy/cmake
@@ -577,18 +562,6 @@ shape_msgs_DIR:PATH=/opt/ros/noetic/share/shape_msgs/cmake
 
 //The directory containing a CMake configuration file for std_msgs.
 std_msgs_DIR:PATH=/opt/ros/noetic/share/std_msgs/cmake
-
-//The directory containing a CMake configuration file for tf2.
-tf2_DIR:PATH=/opt/ros/noetic/share/tf2/cmake
-
-//The directory containing a CMake configuration file for tf2_msgs.
-tf2_msgs_DIR:PATH=/opt/ros/noetic/share/tf2_msgs/cmake
-
-//The directory containing a CMake configuration file for tf2_py.
-tf2_py_DIR:PATH=/opt/ros/noetic/share/tf2_py/cmake
-
-//The directory containing a CMake configuration file for tf2_ros.
-tf2_ros_DIR:PATH=/opt/ros/noetic/share/tf2_ros/cmake
 
 //The directory containing a CMake configuration file for trajectory_msgs.
 trajectory_msgs_DIR:PATH=/opt/ros/noetic/share/trajectory_msgs/cmake
@@ -746,7 +719,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=7
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=5
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
