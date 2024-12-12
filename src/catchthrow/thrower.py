@@ -70,7 +70,7 @@ def pickup_ball(ball_position, right_gripper):
 
     pickup_position = [endpt['position'][0] - final_world_y_offset,
                     endpt['position'][1] - final_world_x_offset,
-                    endpt['position'][2] - 0.19,
+                    endpt['position'][2] - 0.20,
                     endpt['orientation'][0],
                     endpt['orientation'][1],
                     endpt['orientation'][2],
@@ -197,82 +197,89 @@ def ik_service_client(end_position):
 
 def throw(side):
     limb = intera_interface.Limb(side)
-    try:
-        right_gripper = robot_gripper.Gripper('right_gripper')
-        
-        right_gripper.open()
-
     
-        gripper = intera_interface.Gripper(side + '_gripper')
-        has_gripper = True
-
-        joints = limb.joint_names()
-
-        def set_j(limb, joint_name, delta, speed):
-            current_position = limb.joint_angle(joint_name)
-            joint_command = {joint_name: current_position + delta}
-            print("Executing" + str(joint_command))
-            # default 0.3
-            limb.set_joint_position_speed(speed)
-            # default 0.1
-            limb.set_joint_positions(joint_command)
-
-        #Custom Tuck Position
-        TUCK_POSITION = {}
-        TUCK_POSITION['right_j0'] = 0
-        TUCK_POSITION['right_j1'] = -0.5
-        TUCK_POSITION['right_j2'] = 0
-        TUCK_POSITION['right_j3'] = 1.5
-        TUCK_POSITION['right_j4'] = 0
-        TUCK_POSITION['right_j5'] = -1
-        TUCK_POSITION['right_j6'] = 1.7
+    right_gripper = robot_gripper.Gripper('right_gripper')
+    
+    right_gripper.open()
 
 
-        limb.set_joint_position_speed(0.3)
+    gripper = intera_interface.Gripper(side + '_gripper')
+    has_gripper = True
+
+    joints = limb.joint_names()
+
+    def set_j(limb, joint_name, delta, speed):
+        current_position = limb.joint_angle(joint_name)
+        joint_command = {joint_name: current_position + delta}
+        print("Executing" + str(joint_command))
+        # default 0.3
+        limb.set_joint_position_speed(speed)
+        # default 0.1
+        limb.set_joint_positions(joint_command)
+
+    #Custom Tuck Position
+    TUCK_POSITION = {}
+    TUCK_POSITION['right_j0'] = 0
+    TUCK_POSITION['right_j1'] = -0.5
+    TUCK_POSITION['right_j2'] = 0
+    TUCK_POSITION['right_j3'] = 1.5
+    TUCK_POSITION['right_j4'] = 0
+    TUCK_POSITION['right_j5'] = -1
+    TUCK_POSITION['right_j6'] = 1.7
+
+
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
+
+    while not np.allclose(list(curr.values()), list(TUCK_POSITION.values()), atol=0.05):
+        limb.set_joint_positions(TUCK_POSITION)
+        time.sleep(0.001)
         curr = limb.joint_angles()
 
-        while not np.allclose(list(curr.values()), list(TUCK_POSITION.values()), atol=0.05):
-            limb.set_joint_positions(TUCK_POSITION)
-            time.sleep(0.001)
-            curr = limb.joint_angles()
+    print("DETECT BALL RESULT" , detect_ball("right"))
+    global ball_position
+    if ball_position == None:
+        return
 
-        print("DETECT BALL RESULT" , detect_ball("right"))
-        global ball_position
-        if ball_position == None:
-            return
-
-        #Set to Position to Pick up ball:
-        #0 -0.5 0 1.5 0 -1 1.7
-        PICKUP_POSITION = {}
-        PICKUP_POSITION['right_j0'] = 0
-        PICKUP_POSITION['right_j1'] = -0.5
-        PICKUP_POSITION['right_j2'] = 0
-        PICKUP_POSITION['right_j3'] = 1.5
-        PICKUP_POSITION['right_j4'] = 0
-        PICKUP_POSITION['right_j5'] = 0.5
-        PICKUP_POSITION['right_j6'] = 1.7
+    #Set to Position to Pick up ball:
+    #0 -0.5 0 1.5 0 -1 1.7
+    PICKUP_POSITION = {}
+    PICKUP_POSITION['right_j0'] = 0
+    PICKUP_POSITION['right_j1'] = -0.5
+    PICKUP_POSITION['right_j2'] = 0
+    PICKUP_POSITION['right_j3'] = 1.5
+    PICKUP_POSITION['right_j4'] = 0
+    PICKUP_POSITION['right_j5'] = 0.5
+    PICKUP_POSITION['right_j6'] = 1.7
 
 
-        limb.set_joint_position_speed(0.3)
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
+
+    while not np.allclose(list(curr.values()), list(PICKUP_POSITION.values()), atol=0.05):
+        limb.set_joint_positions(PICKUP_POSITION)
+        time.sleep(0.001)
         curr = limb.joint_angles()
 
-        while not np.allclose(list(curr.values()), list(PICKUP_POSITION.values()), atol=0.05):
-            limb.set_joint_positions(PICKUP_POSITION)
-            time.sleep(0.001)
-            curr = limb.joint_angles()
+
+    global endpt
+    endpt = limb.endpoint_pose()
+
+    #TODO PICKUP BALL
+
+    pickup_ball(ball_position, right_gripper)
 
 
-        global endpt
-        endpt = limb.endpoint_pose()
 
-        #TODO PICKUP BALL
 
-        pickup_ball(ball_position, right_gripper)
-
-        ### SET ROBOT TO INITIAL THROWING POSITION ###
-        c = input("Give Thrower Initial Configuration (7 angles) or press enter to use default values: ")
-        if c and len(c) == 7: 
-            c = [float(i) for i in c.split(" ")]
+    ### SET ROBOT TO INITIAL THROWING POSITION ###
+    c = input("Give Thrower Initial Configuration (7 angles) or press enter to use default values: ")
+    
+    if c: 
+        c = [float(i) for i in c.split(" ")]
+        if len(c)==7:
+            print("inside")
+            
             d = {}
             d['right_j0'] = c[0]
             d['right_j1'] = c[1]
@@ -281,82 +288,19 @@ def throw(side):
             d['right_j4'] = c[4]
             d['right_j5'] = c[5]
             d['right_j6'] = c[6]
-        
         else:
             d = {}
-            d['right_j0'] = -0.5 
+            d['right_j0'] = 0.5 
             d['right_j1'] = -0.4 
             d['right_j2'] = 0 
             d['right_j3'] = 1.8 
             d['right_j4'] = 0 
             d['right_j5'] = 2.4
             d['right_j6'] = 1.7
-
-
-
-        r = rospy.Rate(10) # 10hz
-
-        limb.set_joint_position_speed(0.3)
-        curr = limb.joint_angles()
-
-        while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
-            limb.set_joint_positions(d)
-            time.sleep(0.001)
-            curr = limb.joint_angles()
-
-
-        ### THROW BALL ###
-        input2 = input("Give Joint End Positions (3 Angles [5,3,1]) or press enter to use default: ")
-        #Set Throwing Velocities
-        if input2:
-            input2 = [float(i) for i in input2.split(" ")]
-            d['right_j5'] = input2[0]
-            d['right_j3'] = input2[1]
-            d['right_j1'] = input2[2]
-        else:
-            d['right_j5'] = 0
-            d['right_j3'] = 1
-            d['right_j1'] = -1
-        r = rospy.Rate(10) # 10hz
-        master_vel = -50
-        velocity = {}
-        for i in d:
-            if i=='right_j5':
-                velocity[i] = master_vel * 3
-            elif i == 'right_j3':
-                velocity[i] = master_vel * 0.7
-            elif i=='right_j1':
-                velocity[i] = master_vel * 0.025
-            else:
-                velocity[i]=0
-
-        #Perform Throw
-        count = 0
-        limb.set_joint_position_speed(1.0)
-        while count<330:
-            limb.set_joint_velocities(velocity)
-            time.sleep(0.001)
-            count+=1
-        toss_position = limb.endpoint_pose()['position']
-        toss_velocity  =limb.endpoint_pose()['orientation']
-        right_gripper.open()
-        rospy.sleep(3.0)
-        ball_position = "FINISHED"
-        
-        send_toss_data(toss_position, toss_velocity)
-    except:
-        has_gripper = False
-        rospy.loginfo("The electric gripper is not detected on the robot.")
-        print("hi")
-        
-        
-        # detect_box("right")
-        # global box_position
-        # if box_position == None:
-        #     return
-
+    
+    else:
         d = {}
-        d['right_j0'] = -0.5 
+        d['right_j0'] = 0.5 
         d['right_j1'] = -0.4 
         d['right_j2'] = 0 
         d['right_j3'] = 1.8 
@@ -365,20 +309,95 @@ def throw(side):
         d['right_j6'] = 1.7
 
 
+    print(d)
+    r = rospy.Rate(10) # 10hz
 
-        r = rospy.Rate(10) # 10hz
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
 
-        limb.set_joint_position_speed(0.3)
+    while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+        limb.set_joint_positions(d)
+        time.sleep(0.001)
         curr = limb.joint_angles()
+    detect_ball("right")
+    box_position = ball_position
 
-        while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
-            limb.set_joint_positions(d)
-            time.sleep(0.001)
-            curr = limb.joint_angles()
+    ### THROW BALL ###
+    input2 = input("Give Joint End Positions (3 Angles [5,3,1]) or press enter to use default: ")
+    #Set Throwing Velocities
+    if input2:
+        input2 = [float(i) for i in input2.split(" ")]
+        d['right_j5'] = input2[0]
+        d['right_j3'] = input2[1]
+        d['right_j1'] = input2[2]
+    else:
+        d['right_j5'] = 0
+        d['right_j3'] = 1
+        d['right_j1'] = -1
+    r = rospy.Rate(10) # 10hz
+    master_vel = -50
+    velocity = {}
+    for i in d:
+        if i=='right_j5':
+            velocity[i] = master_vel * 3
+        elif i == 'right_j3':
+            velocity[i] = master_vel * 0.7
+        elif i=='right_j1':
+            velocity[i] = master_vel * 0.025
+        else:
+            velocity[i]=0
 
-        detect_box("right")
-        print(box_position) #730, 446
-        # move_to_position(ball_position[0],ball_position[1],0.1)
+    #Perform Throw
+    count = 0
+    limb.set_joint_position_speed(1.0)
+    while count<330:
+        limb.set_joint_velocities(velocity)
+        time.sleep(0.001)
+        count+=1
+    toss_position = limb.endpoint_pose()['position']
+    toss_velocity  =limb.endpoint_pose()['orientation']
+    right_gripper.open()
+    rospy.sleep(3.0)
+    ball_position = "FINISHED"
+    detect_box("right")
+    # print(box_position) #730, 446
+    
+    # send_toss_data(toss_position, toss_velocity)
+    # except:
+    #     has_gripper = False
+    #     rospy.loginfo("The electric gripper is not detected on the robot.")
+    #     print("hi")
+        
+        
+        # # detect_box("right")
+        # # global box_position
+        # # if box_position == None:
+        # #     return
+
+        # d = {}
+        # d['right_j0'] = 0.5 
+        # d['right_j1'] = -0.4 
+        # d['right_j2'] = 0 
+        # d['right_j3'] = 1.8 
+        # d['right_j4'] = 0 
+        # d['right_j5'] = 2.4
+        # d['right_j6'] = 1.7
+
+
+
+        # r = rospy.Rate(10) # 10hz
+
+        # limb.set_joint_position_speed(0.3)
+        # curr = limb.joint_angles()
+
+        # while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+        #     limb.set_joint_positions(d)
+        #     time.sleep(0.001)
+        #     curr = limb.joint_angles()
+
+    # detect_box("right")
+    # print(box_position) #730, 446
+    #     # move_to_position(ball_position[0],ball_position[1],0.1)
 
         
 
@@ -564,7 +583,7 @@ See help inside the example with the '?' key for key bindings.
 
     rospy.loginfo("Enabling robot...")
     rs.enable()
-    while ball_position == "START" or ball_position == "FINISHED" or box_position==None:
+    while ball_position == "START" or ball_position == "FINISHED":
         throw(args.limb)
     print("Done.")
 
