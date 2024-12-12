@@ -20,16 +20,55 @@ import argparse
 
 import rospy
 
+
+from std_msgs.msg import Header
+from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 import intera_interface
 import intera_external_devices
 import numpy as np
 from intera_interface import CHECK_VERSION
 from intera_interface import gripper as robot_gripper
 import time
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
+from moveit_msgs.srv import GetPositionIK, GetPositionIKRequest, GetPositionIKResponse
+from geometry_msgs.msg import PoseStamped
+from moveit_commander import MoveGroupCommander
+import tf2_ros
+import tf
+import sys
+from sensor_msgs.msg import Image
+from geometry_msgs.msg import TransformStamped, PoseStamped, Twist, Point
+from tf.transformations import quaternion_from_euler
+from tf2_geometry_msgs import do_transform_pose
+from ultralytics import YOLO
+
+ball_position = "START"
+endpt = None
+
+def pickup_ball(ball_position, ball_velocity, right_gripper):
+
+    pixel_world_scalar = 1900
+
+    final_cam_pos_x, final_cam_pos_y = ball_position[0] - 293.61285400390625 , ball_position[1] - 246.72952270507812
+    final_world_x_offset, final_world_y_offset = final_cam_pos_x/pixel_world_scalar, final_cam_pos_y/pixel_world_scalar
+
+    end_position = [endpt['position'][0] - final_world_y_offset,
+                    endpt['position'][1] - final_world_x_offset,
+                    endpt['position'][2] - 0.05,
+                    endpt['orientation'][0],
+                    endpt['orientation'][1],
+                    endpt['orientation'][2],
+                    endpt['orientation'][3]]
+
+    ik_service_client(end_position)
 
 
-def map_keyboard(side):
-    right_gripper = robot_gripper.Gripper('right_gripper')
+    
+def catch(msg):
+
+    # MOVE TO CATCH INIT POSITION
     limb = intera_interface.Limb(side)
 
     try:
@@ -42,126 +81,42 @@ def map_keyboard(side):
 
     joints = limb.joint_names()
 
-
     def set_j(limb, joint_name, delta, speed):
         current_position = limb.joint_angle(joint_name)
         joint_command = {joint_name: current_position + delta}
         print("Executing" + str(joint_command))
+        # default 0.3
         limb.set_joint_position_speed(speed)
         # default 0.1
         limb.set_joint_positions(joint_command)
 
-        
+    #Custom Tuck Position
+    TUCK_POSITION = {}
+    TUCK_POSITION['right_j0'] = 0
+    TUCK_POSITION['right_j1'] = -0.5
+    TUCK_POSITION['right_j2'] = 0
+    TUCK_POSITION['right_j3'] = 1.5
+    TUCK_POSITION['right_j4'] = 0
+    TUCK_POSITION['right_j5'] = -1
+    TUCK_POSITION['right_j6'] = 1.7
 
-    def set_g(action):
-        if has_gripper:
-            if action == "close":
-                gripper.close()
-            elif action == "open":
-                gripper.open()
-            elif action == "calibrate":
-                gripper.calibrate()
 
-    bindings = {
-        '1': (set_j, [limb, joints[0], 0.1], joints[0]+" increase"),
-        'q': (set_j, [limb, joints[0], -0.1], joints[0]+" decrease"),
-        '2': (set_j, [limb, joints[1], 0.1], joints[1]+" increase"),
-        'w': (set_j, [limb, joints[1], -0.1], joints[1]+" decrease"),
-        '3': (set_j, [limb, joints[2], 0.1], joints[2]+" increase"),
-        'e': (set_j, [limb, joints[2], -0.1], joints[2]+" decrease"),
-        '4': (set_j, [limb, joints[3], 0.1], joints[3]+" increase"),
-        'r': (set_j, [limb, joints[3], -0.1], joints[3]+" decrease"),
-        '5': (set_j, [limb, joints[4], 0.1], joints[4]+" increase"),
-        't': (set_j, [limb, joints[4], -0.1], joints[4]+" decrease"),
-        '6': (set_j, [limb, joints[5], 0.1], joints[5]+" increase"),
-        'y': (set_j, [limb, joints[5], -0.1], joints[5]+" decrease"),
-        '7': (set_j, [limb, joints[6], 0.1], joints[6]+" increase"),
-        'u': (set_j, [limb, joints[6], -0.1], joints[6]+" decrease")
-     }
-    if has_gripper:
-        bindings.update({
-        '8': (set_g, "close", side+" gripper close"),
-        'i': (set_g, "open", side+" gripper open"),
-        '9': (set_g, "calibrate", side+" gripper calibrate")
-        })
-    done = False
-    print("Controlling joints. Press ? for help, Esc to quit.")
-    c = [float(i) for i in input("Give: ").split(" ")]
-    joint5 = 0.0
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
 
-    if c and c in ['\x1b', '\x03']:
-        done = True
-        rospy.signal_shutdown("Example finished.")
-    if c and len(c) == 7:
-        
-        d = {}
-        d['right_j0'] = c[0]
-        d['right_j1'] = c[1]
-        d['right_j2'] = c[2]
-        d['right_j3'] = c[3]
-        d['right_j4'] = c[4]
-        d['right_j5'] = c[5]
-        d['right_j6'] = c[6]
-        joint5 = float(c[5])
-        r = rospy.Rate(10) # 10hz
-
-        limb.set_joint_position_speed(0.4)
+    while not np.allclose(list(curr.values()), list(TUCK_POSITION.values()), atol=0.05):
+        limb.set_joint_positions(TUCK_POSITION)
+        time.sleep(0.001)
         curr = limb.joint_angles()
-       
-        
-        while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
-            limb.set_joint_positions(d)
-            time.sleep(0.01)
-            curr = limb.joint_angles()
-            
 
-    right_gripper.open()
-    rospy.sleep(2.0)
-    print('Done!')
+    
+    start_position = msg.linear
+    start_velocity = msg.angular
+    catch_ball(start_position, start_velocity, right_gripper)
 
 
-    input2 = [float(i) for i in input("Give moving coords: ").split(" ")]
-    if input2 and input2 in ['\x1b', '\x03']:
-        done = True
-        rospy.signal_shutdown("Example finished.")
-    if input2 and len(input2) == 7:
-        
-        d = {}
-        d['right_j0'] = input2[0]
-        d['right_j1'] = input2[1]
-        d['right_j2'] = input2[2]
-        d['right_j3'] = input2[3]
-        d['right_j4'] = input2[4]
-        d['right_j5'] = input2[5]
-        d['right_j6'] = input2[6]
-
-        r = rospy.Rate(10) # 10hz
-
-        limb.set_joint_position_speed(80)
-        cvals = list(limb.joint_angles().values())
-        dvals = list(d.values())
-
-        while not np.allclose(cvals, dvals, atol=0.05):
-            limb.set_joint_positions(d)
-            time.sleep(0.001)
-            cvals = list(limb.joint_angles().values())
-            max_diff = max([abs(cvals[j]-dvals[j]) for j in range(len(cvals))])
-            # fix boundary of when to grasp ball
-            print("m", max_diff)
-            if max_diff < 0.5:
-                right_gripper.close()
-
-        
 
 def main():
-    """RSDK Joint Position Example: Keyboard Control
-
-    Use your dev machine's keyboard to control joint positions.
-
-    Each key corresponds to increasing or decreasing the angle
-    of a joint on Sawyer's arm. The increasing and descreasing
-    are represented by number key and letter key next to the number.
-    """
     epilog = """
 See help inside the example with the '?' key for key bindings.
     """
@@ -195,8 +150,58 @@ See help inside the example with the '?' key for key bindings.
 
     rospy.loginfo("Enabling robot...")
     rs.enable()
-    map_keyboard(args.limb)
+    rospy.init_node('catcher', anonymous=True)
+  
+    rospy.Subscriber("/cmd_vel", Twist,catch) # TODO: what are we subscribing to here?
+  
+    rospy.spin()
     print("Done.")
+
+
+# def predict(chosen_model, img, classes=[], conf=0.5):
+# if classes:
+# results = chosen_model.predict(img, classes=classes, conf=conf)
+# else:
+# results = chosen_model.predict(img, conf=conf)
+# return results
+# def predict_and_detect(chosen_model, img, classes=[], conf=0.5, rectangle_thickness=2,
+# text_thickness=1):
+# results = predict(chosen_model, img, classes, conf=conf)
+# for result in results:
+# for box in result.boxes:
+# cv2.rectangle(img, (int(box.xyxy[0][0]), int(box.xyxy[0][1])),
+# (int(box.xyxy[0][2]), int(box.xyxy[0][3])), (255, 0, 0),
+# rectangle_thickness)
+# cv2.putText(img, f"{result.names[int(box.cls[0])]}",
+# (int(box.xyxy[0][0]), int(box.xyxy[0][1]) - 10),
+# cv2.FONT_HERSHEY_PLAIN, 1, (255, 0, 0), text_thickness)
+# return img, results
+# # defining function for creating a writer (for mp4 videos)
+# def create_video_writer(video_cap, output_filename):
+# # grab the width, height, and fps of the frames in the video stream.
+# frame_width = int(video_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+# frame_height = int(video_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# fps = int(video_cap.get(cv2.CAP_PROP_FPS))
+# # initialize the FourCC and a video writer object
+# fourcc = cv2.VideoWriter_fourcc(*’MP4V’)
+# writer = cv2.VideoWriter(output_filename, fourcc, fps,
+# (frame_width, frame_height))
+# return writer
+# model = YOLO("yolo11x.pt")
+# output_filename = "output.mp4"
+# video_path = r"balls.mp4"
+# cap = cv2.VideoCapture(video_path)
+# writer = create_video_writer(cap, output_filename)
+# while True:
+# success, img = cap.read()
+# if not success:
+# break
+# result_img, _ = predict_and_detect(model, img, classes=[], conf=0.5)
+# writer.write(result_img)
+# cv2.imshow("Image", result_img)
+# cv2.waitKey(1)
+# writer.release()
+
 
 
 if __name__ == '__main__':

@@ -186,6 +186,8 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/ros/noetic/share/message_generation/cmake/message_generationConfig.cmake"
   "/opt/ros/noetic/share/message_runtime/cmake/message_runtimeConfig-version.cmake"
   "/opt/ros/noetic/share/message_runtime/cmake/message_runtimeConfig.cmake"
+  "/opt/ros/noetic/share/moveit_commander/cmake/moveit_commanderConfig-version.cmake"
+  "/opt/ros/noetic/share/moveit_commander/cmake/moveit_commanderConfig.cmake"
   "/opt/ros/noetic/share/moveit_msgs/cmake/moveit_msgs-msg-extras.cmake"
   "/opt/ros/noetic/share/moveit_msgs/cmake/moveit_msgsConfig-version.cmake"
   "/opt/ros/noetic/share/moveit_msgs/cmake/moveit_msgsConfig.cmake"

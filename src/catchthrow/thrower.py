@@ -69,7 +69,7 @@ def pickup_ball(ball_position, right_gripper):
 
     pickup_position = [endpt['position'][0] - final_world_y_offset,
                     endpt['position'][1] - final_world_x_offset,
-                    endpt['position'][2] - 0.17,
+                    endpt['position'][2] - 0.19,
                     endpt['orientation'][0],
                     endpt['orientation'][1],
                     endpt['orientation'][2],
@@ -131,11 +131,12 @@ def ik_service_client(end_position):
 
         # Plan IK
         plan = group.plan()
-        user_input = input("Enter 'y' if the trajectory looks safe on RVIZ")
+        group.execute(plan[1])
+        # user_input = input("Enter 'y' if the trajectory looks safe on RVIZ")
         
-        # Execute IK if safe
-        if user_input == 'y':
-            group.execute(plan[1])
+        # # Execute IK if safe
+        # if user_input == 'y':
+        #     group.execute(plan[1])
         
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
@@ -144,6 +145,7 @@ def ik_service_client(end_position):
 def throw(side):
     right_gripper = robot_gripper.Gripper('right_gripper')
     limb = intera_interface.Limb(side)
+    right_gripper.open()
 
     try:
         gripper = intera_interface.Gripper(side + '_gripper')
@@ -231,7 +233,7 @@ def throw(side):
        
     else:
         d = {}
-        d['right_j0'] = -.5 
+        d['right_j0'] = -0.5 
         d['right_j1'] = -0.4 
         d['right_j2'] = 0 
         d['right_j3'] = 1.8 
@@ -284,11 +286,75 @@ def throw(side):
         limb.set_joint_velocities(velocity)
         time.sleep(0.001)
         count+=1
-
+    toss_position = limb.endpoint_pose()['position']
+    toss_velocity  =limb.endpoint_pose()['orientation']
     right_gripper.open()
     rospy.sleep(3.0)
     ball_position = "FINISHED"
+     
+    send_toss_data(toss_position, toss_velocity)
 
+def detect_box():
+     try:
+        # Convert the ROS image to OpenCV format
+        bridge = CvBridge()
+        img = bridge.imgmsg_to_cv2(msg, "bgr8")
+    except CvBridgeError as e:
+        print(e)
+        return
+   
+    # Convert the image to HSV
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Define the HSV color range for the ball (adjust these values depending on the ball's color)
+    lower = np.array([0, 0, 0])  # Lower bound of color (adjust as needed)
+    upper = np.array([180, 255, 50])  # Upper bound of color (adjust as needed)
+
+    # Create a binary mask using the color range
+    
+    mask = cv2.inRange(hsv, lower, upper)
+
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    num_balls = 0
+    global ball_position
+    ball_position = None
+
+    for contour in contours:
+        # Approximate the contour with a polygon
+        epsilon = 0.02 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        
+        # If the contour area is too small, skip it
+        if cv2.contourArea(contour) < 100:
+            continue
+        
+        
+        # Get the enclosing circle of the contour
+        (x, y), radius = cv2.minEnclosingCircle(contour)
+
+        # If the radius is in a reasonable range (you can adjust these thresholds)
+        if 30 < radius < 100:
+            # Draw the circle on the image
+            cv2.circle(img, (int(x), int(y)), int(radius), (0, 255, 0), 2)
+            # cv2.circle(img, (int(x), int(y)), 2, (0, 0, 255), 3)
+
+            # Log the position of the ball
+            rospy.loginfo(f"Ball detected at ({x}, {y})")
+            num_balls +=1
+
+            
+            ball_position  = (x,y)
+
+    # Display the image with detected balls
+    cv2.imshow('Ball Detection', img)
+    cv2.waitKey(1)
+    
+    print("Total number of balls detected: ", num_balls)
 
 def detect_ball(side):
 
@@ -359,6 +425,15 @@ def image_callback(msg):
     cv2.waitKey(1)
     
     print("Total number of balls detected: ", num_balls)
+
+def send_toss_data(position,velocity):
+    pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+    msg = Twist()
+    msg.linear = position
+    msg.angular = velocity
+    pub.publish(msg)
+
+
 
 
 def main():

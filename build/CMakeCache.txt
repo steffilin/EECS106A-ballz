@@ -383,7 +383,7 @@ RT_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/librt.so
 SETUPTOOLS_DEB_LAYOUT:BOOL=ON
 
 //Name of the computer/site where compile is being run
-SITE:STRING=c105-6
+SITE:STRING=c105-10
 
 //Path to a file.
 TinyXML_INCLUDE_DIR:PATH=/usr/include
@@ -574,6 +574,9 @@ message_generation_DIR:PATH=/opt/ros/noetic/share/message_generation/cmake
 
 //The directory containing a CMake configuration file for message_runtime.
 message_runtime_DIR:PATH=/opt/ros/noetic/share/message_runtime/cmake
+
+//The directory containing a CMake configuration file for moveit_commander.
+moveit_commander_DIR:PATH=/opt/ros/noetic/share/moveit_commander/cmake
 
 //The directory containing a CMake configuration file for moveit_msgs.
 moveit_msgs_DIR:PATH=/opt/ros/noetic/share/moveit_msgs/cmake
