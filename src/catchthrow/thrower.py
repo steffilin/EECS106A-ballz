@@ -28,6 +28,7 @@ import intera_external_devices
 import numpy as np
 from intera_interface import CHECK_VERSION
 from intera_interface import gripper as robot_gripper
+# from /opt/ros/eecsbot_ws/src/intera_sdk/intera_examples import camera_display
 import time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -42,6 +43,62 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import TransformStamped, PoseStamped, Twist, Point
 from tf.transformations import quaternion_from_euler
 from tf2_geometry_msgs import do_transform_pose
+
+from intera_core_msgs.srv._IOComponentCommandSrv import IOComponentCommandSrv
+from intera_core_msgs.msg._IOComponentCommand import IOComponentCommand
+
+def lookup_tag(tag_number):
+    """
+    Given an AR tag number, this returns the position of the AR tag in the robot's base frame.
+    You can use either this function or try starting the scripts/tag_pub.py script.  More info
+    about that script is in that file.  
+
+    Parameters
+    ----------
+    tag_number : int
+
+    Returns
+    -------
+    3x' :obj:`numpy.ndarray`
+        tag position
+    """
+
+    
+    # TODO: initialize a tf buffer and listener as in lab 3
+
+    tfBuffer = tf2_ros.Buffer()
+    tfListener = tf2_ros.TransformListener(tfBuffer)
+
+    try:
+        # TODO: lookup the transform and save it in trans
+        # The rospy.Time(0) is the latest available 
+        # The rospy.Duration(10.0) is the amount of time to wait for the transform to be available before throwing an exception
+        ar_tag_frame = "ar_marker_" + str(tag_number)
+        trans = tfBuffer.lookup_transform("base", ar_tag_frame, rospy.Time(0), rospy.Duration(10.0))
+    except Exception as e: 
+        print(e)
+        print("Retrying ...")
+
+    tag_pos = [getattr(trans.transform.translation, dim) for dim in ('x', 'y', 'z')]
+    return np.array(tag_pos)
+
+
+def camera_command_client(camera, status, timeout=0.0):
+    rospy.wait_for_service('/io/internal_camera/' + camera + '/command')
+    try:
+        head_cam_control = rospy.ServiceProxy('/io/internal_camera/' + camera + '/command', IOComponentCommandSrv)
+        cmd = IOComponentCommand()
+        cmd.time = rospy.Time.now()
+        cmd.op = 'set'
+        if status:
+            cmd.args = '{"signals": {"camera_streaming": {"data": [true], "format": {"type": "bool"}}}}'
+        else:
+            cmd.args = '{"signals": {"camera_streaming": {"data": [false], "format": {"type": "bool"}}}}'
+
+        resp = head_cam_control(cmd, timeout)
+
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
 
 ball_position = "START"
 box_position = None
@@ -226,6 +283,12 @@ def throw(side):
     TUCK_POSITION['right_j4'] = 0
     TUCK_POSITION['right_j5'] = -1
     TUCK_POSITION['right_j6'] = 1.7
+    global box_position
+    print(box_position)
+    # detect_ball("right")
+    box_position  = lookup_tag(12) 
+    print(box_position)
+    return
 
 
     limb.set_joint_position_speed(0.3)
@@ -319,9 +382,9 @@ def throw(side):
         limb.set_joint_positions(d)
         time.sleep(0.001)
         curr = limb.joint_angles()
-    detect_ball("right")
-    box_position = ball_position
-
+    # detect_box()
+    
+    
     ### THROW BALL ###
     input2 = input("Give Joint End Positions (3 Angles [5,3,1]) or press enter to use default: ")
     #Set Throwing Velocities
@@ -359,7 +422,7 @@ def throw(side):
     right_gripper.open()
     rospy.sleep(3.0)
     ball_position = "FINISHED"
-    detect_box("right")
+    # detect_box("right")
     # print(box_position) #730, 446
     
     # send_toss_data(toss_position, toss_velocity)
@@ -399,9 +462,61 @@ def throw(side):
     # print(box_position) #730, 446
     #     # move_to_position(ball_position[0],ball_position[1],0.1)
 
+
+class CameraDisplay:
+    def __init__(self):
+        # rospy.init_node('camera_display', anonymous=True)
+
+        self.bridge = CvBridge()
+        self.current_topic = "/io/internal_camera/head_camera/image_raw"
+        self.subscriber = None
+        self.lock = threading.Lock()
+
+        self.running = True
+
+    def switch_camera(self, new_topic):
+        with self.lock:
+            if self.subscriber:
+                self.subscriber.unregister()  # Unsubscribe from the current topic
+
+            self.current_topic = new_topic
+            self.subscriber = rospy.Subscriber(self.current_topic, Image, self.image_callback)
+            rospy.loginfo(f"Switched to camera topic: {self.current_topic}")
+
+    def image_callback(self, msg):
+        try:
+            # Convert the ROS Image message to an OpenCV image
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            rospy.logerr(f"Failed to convert image: {e}")
+            return
+
+        # Display the image
+        cv2.imshow("Camera Feed", cv_image)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            self.running = False
+            rospy.signal_shutdown("User requested shutdown.")
+
+    def run(self):
+        # Start with the default topic
+        self.switch_camera(self.current_topic)
+
+        while self.running:
+            # Check for user input to switch cameras
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('h'):  # Switch to head camera
+                self.switch_camera("/io/internal_camera/head_camera/image_raw")
+            elif key == ord('r'):  # Switch to right-hand camera
+                self.switch_camera("/io/internal_camera/right_hand_camera/image_raw")
+            elif key == ord('q'):  # Quit
+                self.running = False
+                rospy.signal_shutdown("User requested shutdown.")
+
+        # Cleanup
+        cv2.destroyAllWindows()
         
 
-def detect_box(msg):
+def detect_box():
     sub = rospy.Subscriber("/io/internal_camera/head_camera/image_raw", Image, image_callback_box)
     rospy.sleep(3.0)
     sub.unregister()
@@ -432,6 +547,7 @@ def image_callback_box(msg):
     upper = np.array([130, 255, 255])  # Upper bound of color (adjust as needed)
     lower = np.array([35,50,50])  # Lower bound of color (adjust as needed)
     upper = np.array([85, 255, 255])  # Upper bound of color (adjust as needed)
+    
     
    
 
@@ -539,12 +655,12 @@ def image_callback(msg):
     
     print("Total number of balls detected: ", num_balls)
 
-def send_toss_data(position,velocity):
-    pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
-    msg = Twist()
-    msg.linear = position
-    msg.angular = velocity
-    pub.publish(msg)
+# def send_toss_data(position,velocity):
+#     pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+#     msg = Twist()
+#     msg.linear = position
+#     msg.angular = velocity
+#     pub.publish(msg)
 
 
 
@@ -569,6 +685,7 @@ See help inside the example with the '?' key for key bindings.
         help="Limb on which to run the joint position keyboard example"
     )
     args = parser.parse_args(rospy.myargv()[1:])
+    
 
     print("Initializing node... ")
     rospy.init_node("sdk_joint_position_keyboard")
@@ -584,6 +701,9 @@ See help inside the example with the '?' key for key bindings.
     rospy.loginfo("Enabling robot...")
     rs.enable()
     while ball_position == "START" or ball_position == "FINISHED":
+    
+        # detect_box()
+        # # detect_ball("right")
         throw(args.limb)
     print("Done.")
 
