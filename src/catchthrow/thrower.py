@@ -43,9 +43,10 @@ from geometry_msgs.msg import TransformStamped, PoseStamped, Twist, Point
 from tf.transformations import quaternion_from_euler
 from tf2_geometry_msgs import do_transform_pose
 
-
 ball_position = "START"
+box_position = None
 endpt = None
+
 
 def pickup_ball(ball_position, right_gripper):
 
@@ -69,7 +70,7 @@ def pickup_ball(ball_position, right_gripper):
 
     pickup_position = [endpt['position'][0] - final_world_y_offset,
                     endpt['position'][1] - final_world_x_offset,
-                    endpt['position'][2] - 0.17,
+                    endpt['position'][2] - 0.20,
                     endpt['orientation'][0],
                     endpt['orientation'][1],
                     endpt['orientation'][2],
@@ -84,8 +85,60 @@ def pickup_ball(ball_position, right_gripper):
     ik_service_client(end_position)
 
     # Close the right gripper
-    
 
+def move_to_position(x, y, z):
+   
+
+    arm_group = MoveGroupCommander("right_arm")
+    pose_target = Pose()
+    pose_target.position.x = x
+    pose_target.position.y = y
+    pose_target.position.z = z
+    # Set orientation if needed
+    # pose_target.orientation.w = 1.0
+
+    arm_group.set_pose_target(pose_target)
+    plan = arm_group.go(wait=True)
+    arm_group.execute(plan,wait=True)
+
+    
+def throw_to_box(box_position, right_gripper):
+
+    pixel_world_scalar = 1900
+
+    final_cam_pos_x, final_cam_pos_y = ball_position[0] - 293.61285400390625 , ball_position[1] - 246.72952270507812
+    final_world_x_offset, final_world_y_offset = final_cam_pos_x/pixel_world_scalar, final_cam_pos_y/pixel_world_scalar
+
+    end_position = [box_position['position'][0] - final_world_y_offset,
+                    endpt['position'][1] - final_world_x_offset,
+                    endpt['position'][2] - 0.05,
+                    endpt['orientation'][0],
+                    endpt['orientation'][1],
+                    endpt['orientation'][2],
+                    endpt['orientation'][3]]
+
+    ik_service_client(end_position)
+
+    # right_gripper.open()
+    # rospy.sleep(3.0)
+
+    # pickup_position = [endpt['position'][0] - final_world_y_offset,
+    #                 endpt['position'][1] - final_world_x_offset,
+    #                 endpt['position'][2] - 0.19,
+    #                 endpt['orientation'][0],
+    #                 endpt['orientation'][1],
+    #                 endpt['orientation'][2],
+    #                 endpt['orientation'][3]]
+
+    # ik_service_client(pickup_position)
+
+    # print('Closing...')
+    # right_gripper.close()
+    # rospy.sleep(1.0)
+
+    # ik_service_client(end_position)
+
+    # Close the right gripper
 
 
 def ik_service_client(end_position):
@@ -131,27 +184,27 @@ def ik_service_client(end_position):
 
         # Plan IK
         plan = group.plan()
-        user_input = input("Enter 'y' if the trajectory looks safe on RVIZ")
+        group.execute(plan[1])
+        # user_input = input("Enter 'y' if the trajectory looks safe on RVIZ")
         
-        # Execute IK if safe
-        if user_input == 'y':
-            group.execute(plan[1])
+        # # Execute IK if safe
+        # if user_input == 'y':
+        #     group.execute(plan[1])
         
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
 
 
 def throw(side):
-    right_gripper = robot_gripper.Gripper('right_gripper')
     limb = intera_interface.Limb(side)
+    
+    right_gripper = robot_gripper.Gripper('right_gripper')
+    
+    right_gripper.open()
 
-    try:
-        gripper = intera_interface.Gripper(side + '_gripper')
-    except:
-        has_gripper = False
-        rospy.loginfo("The electric gripper is not detected on the robot.")
-    else:
-        has_gripper = True
+
+    gripper = intera_interface.Gripper(side + '_gripper')
+    has_gripper = True
 
     joints = limb.joint_names()
 
@@ -216,22 +269,38 @@ def throw(side):
 
     pickup_ball(ball_position, right_gripper)
 
+
+
+
     ### SET ROBOT TO INITIAL THROWING POSITION ###
     c = input("Give Thrower Initial Configuration (7 angles) or press enter to use default values: ")
-    if c and len(c) == 7: 
+    
+    if c: 
         c = [float(i) for i in c.split(" ")]
-        d = {}
-        d['right_j0'] = c[0]
-        d['right_j1'] = c[1]
-        d['right_j2'] = c[2]
-        d['right_j3'] = c[3]
-        d['right_j4'] = c[4]
-        d['right_j5'] = c[5]
-        d['right_j6'] = c[6]
-       
+        if len(c)==7:
+            print("inside")
+            
+            d = {}
+            d['right_j0'] = c[0]
+            d['right_j1'] = c[1]
+            d['right_j2'] = c[2]
+            d['right_j3'] = c[3]
+            d['right_j4'] = c[4]
+            d['right_j5'] = c[5]
+            d['right_j6'] = c[6]
+        else:
+            d = {}
+            d['right_j0'] = 0.5 
+            d['right_j1'] = -0.4 
+            d['right_j2'] = 0 
+            d['right_j3'] = 1.8 
+            d['right_j4'] = 0 
+            d['right_j5'] = 2.4
+            d['right_j6'] = 1.7
+    
     else:
         d = {}
-        d['right_j0'] = -.5 
+        d['right_j0'] = 0.5 
         d['right_j1'] = -0.4 
         d['right_j2'] = 0 
         d['right_j3'] = 1.8 
@@ -240,7 +309,7 @@ def throw(side):
         d['right_j6'] = 1.7
 
 
-
+    print(d)
     r = rospy.Rate(10) # 10hz
 
     limb.set_joint_position_speed(0.3)
@@ -250,7 +319,8 @@ def throw(side):
         limb.set_joint_positions(d)
         time.sleep(0.001)
         curr = limb.joint_angles()
-
+    detect_ball("right")
+    box_position = ball_position
 
     ### THROW BALL ###
     input2 = input("Give Joint End Positions (3 Angles [5,3,1]) or press enter to use default: ")
@@ -284,10 +354,58 @@ def throw(side):
         limb.set_joint_velocities(velocity)
         time.sleep(0.001)
         count+=1
-
+    toss_position = limb.endpoint_pose()['position']
+    toss_velocity  =limb.endpoint_pose()['orientation']
     right_gripper.open()
     rospy.sleep(3.0)
     ball_position = "FINISHED"
+    detect_box("right")
+    # print(box_position) #730, 446
+    
+    # send_toss_data(toss_position, toss_velocity)
+    # except:
+    #     has_gripper = False
+    #     rospy.loginfo("The electric gripper is not detected on the robot.")
+    #     print("hi")
+        
+        
+        # # detect_box("right")
+        # # global box_position
+        # # if box_position == None:
+        # #     return
+
+        # d = {}
+        # d['right_j0'] = 0.5 
+        # d['right_j1'] = -0.4 
+        # d['right_j2'] = 0 
+        # d['right_j3'] = 1.8 
+        # d['right_j4'] = 0 
+        # d['right_j5'] = 2.4
+        # d['right_j6'] = 1.7
+
+
+
+        # r = rospy.Rate(10) # 10hz
+
+        # limb.set_joint_position_speed(0.3)
+        # curr = limb.joint_angles()
+
+        # while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+        #     limb.set_joint_positions(d)
+        #     time.sleep(0.001)
+        #     curr = limb.joint_angles()
+
+    # detect_box("right")
+    # print(box_position) #730, 446
+    #     # move_to_position(ball_position[0],ball_position[1],0.1)
+
+        
+
+def detect_box(msg):
+    sub = rospy.Subscriber("/io/internal_camera/head_camera/image_raw", Image, image_callback_box)
+    rospy.sleep(3.0)
+    sub.unregister()
+    return box_position
 
 
 def detect_ball(side):
@@ -297,6 +415,67 @@ def detect_ball(side):
     sub.unregister()
     return ball_position
 
+def image_callback_box(msg):
+    try:
+        # Convert the ROS image to OpenCV format
+        bridge = CvBridge()
+        img = bridge.imgmsg_to_cv2(msg, "bgr8")
+    except CvBridgeError as e:
+        print(e)
+        return
+   
+    # Convert the image to HSV
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Define the HSV color range for the ball (adjust these values depending on the ball's color)
+    lower = np.array([90,150,50])  # Lower bound of color (adjust as needed)
+    upper = np.array([130, 255, 255])  # Upper bound of color (adjust as needed)
+    lower = np.array([35,50,50])  # Lower bound of color (adjust as needed)
+    upper = np.array([85, 255, 255])  # Upper bound of color (adjust as needed)
+    
+   
+
+    # Create a binary mask using the color range
+    
+    mask = cv2.inRange(hsv, lower, upper)
+    red_regions = cv2.bitwise_and(img, img, mask=mask)
+
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.imshow("Red Regions", red_regions)
+    global box_position 
+    box_position = None
+    # Loop through each contour and find the bounding rectangle and center
+    for contour in contours:
+        # Skip small contours (you can adjust the area threshold)
+        if cv2.contourArea(contour) < 1000:  # Adjust the area threshold as needed
+            continue
+
+        # Get the bounding rectangle
+        x, y, w, h = cv2.boundingRect(contour)
+
+        # Calculate the center of the rectangle
+        center_x = x + w // 2
+        center_y = y + h // 2
+
+        # Draw the bounding rectangle and the center point
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green rectangle
+        cv2.circle(img, (center_x, center_y), 5, (0, 0, 255), -1)  # Red center
+
+        # Optionally, print the center position
+        print(f"Center of bounding box: ({center_x}, {center_y})")
+        box_position = (center_x, center_y)
+        
+
+    # Display the result
+    cv2.imshow("Original Image with Bounding Boxes and Centers", img)
+    cv2.waitKey(0)
+
+    
+    
+
+    # Wait for the user to press a key to close the image windows
+    cv2.waitKey(1)
 
 def image_callback(msg):
     try:
@@ -359,6 +538,15 @@ def image_callback(msg):
     cv2.waitKey(1)
     
     print("Total number of balls detected: ", num_balls)
+
+def send_toss_data(position,velocity):
+    pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+    msg = Twist()
+    msg.linear = position
+    msg.angular = velocity
+    pub.publish(msg)
+
+
 
 
 def main():

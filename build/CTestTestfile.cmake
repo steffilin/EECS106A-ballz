@@ -7,6 +7,8 @@
 subdirs("gtest")
 subdirs("sawyer_full_stack")
 subdirs("ar_track_alvar/ar_track_alvar_msgs")
+subdirs("lab4_cam")
 subdirs("ar_track_alvar/ar_track_alvar")
+subdirs("usb_cam")
 subdirs("baxter_pykdl")
 subdirs("catchthrow")

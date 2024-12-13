@@ -1,0 +1,8 @@
+<launch>
+    <node name="usb_cam" pkg="catchthrow" type="usb_cam_node">
+        <param name="device" value="/dev/video0" />
+        <param name="fps" value="30" />
+        <param name="width" value="640" />
+        <param name="height" value="480" />
+    </node>
+</launch>

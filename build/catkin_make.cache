@@ -1,2 +1,2 @@
-ar_track_alvar/ar_track_alvar:ar_track_alvar/ar_track_alvar_msgs:baxter_pykdl:catchthrow:sawyer_full_stack
+ar_track_alvar/ar_track_alvar:ar_track_alvar/ar_track_alvar_msgs:baxter_pykdl:catchthrow:lab4_cam:sawyer_full_stack:usb_cam
 -DCATKIN_DEVEL_PREFIX=/home/cc/ee106a/fa24/class/ee106a-ail/project/devel -DCMAKE_INSTALL_PREFIX=/home/cc/ee106a/fa24/class/ee106a-ail/project/install -G Unix Makefiles
