@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['ball']
+
+roboflow:
+  workspace: aastmt-y5wwb
+  project: debi_final
+  version: 7
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/aastmt-y5wwb/debi_final/dataset/7
