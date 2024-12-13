@@ -19,6 +19,7 @@ SDK Joint Position Example: keyboard
 import argparse
 
 import rospy
+import math
 
 
 from std_msgs.msg import Header
@@ -74,7 +75,7 @@ def lookup_tag(tag_number):
         # The rospy.Time(0) is the latest available 
         # The rospy.Duration(10.0) is the amount of time to wait for the transform to be available before throwing an exception
         ar_tag_frame = "ar_marker_" + str(tag_number)
-        trans = tfBuffer.lookup_transform("base", ar_tag_frame, rospy.Time(0), rospy.Duration(10.0))
+        trans = tfBuffer.lookup_transform("base", ar_tag_frame, rospy.Time(0), rospy.Duration(100.0))
     except Exception as e: 
         print(e)
         print("Retrying ...")
@@ -127,7 +128,7 @@ def pickup_ball(ball_position, right_gripper):
 
     pickup_position = [endpt['position'][0] - final_world_y_offset,
                     endpt['position'][1] - final_world_x_offset,
-                    endpt['position'][2] - 0.20,
+                    endpt['position'][2] - 0.19,
                     endpt['orientation'][0],
                     endpt['orientation'][1],
                     endpt['orientation'][2],
@@ -264,6 +265,41 @@ def throw(side):
     has_gripper = True
 
     joints = limb.joint_names()
+    # global box_position
+    # # box_position  =[1.19341689, 0.6006508 , 0.10391288] 
+    # # detect_ball("right")
+    # # detect_box()
+    # print("BOX: ", box_position)
+
+    # box_position  = lookup_tag(1) 
+    # print("BOX: ", box_position)
+
+    
+
+
+
+    # current_angle = limb.joint_angle('right_j0')
+    # if box_position is not None:
+    #     target_angle = math.atan((box_position[1]+0.1)/ (box_position[0]-0.1)) 
+    #     # target_angle =current_angle - angle
+    # else:
+    #     return
+
+    # print("TARGET:", target_angle)
+
+    # print("CURRENT:", current_angle)
+    # # target_angle = max(current_angle - 0.3, min(current_angle + 0.3, target_angle))
+    # target_angle = max(0, min(target_angle, 0.9)) - 0.15
+    # print("NEW TARGET:", target_angle)
+
+    # limb.set_joint_position_speed(0.1)
+
+    # while abs(target_angle -current_angle)>0.01:
+    #     limb.set_joint_positions({'right_j0': target_angle})
+    #     current_angle = limb.joint_angle('right_j0')
+    
+    # return
+    
 
     def set_j(limb, joint_name, delta, speed):
         current_position = limb.joint_angle(joint_name)
@@ -274,6 +310,26 @@ def throw(side):
         # default 0.1
         limb.set_joint_positions(joint_command)
 
+    #safe tuck 
+    TUCK_POSITION = {}
+    TUCK_POSITION['right_j0'] = 0
+    TUCK_POSITION['right_j1'] = -0.75
+    TUCK_POSITION['right_j2'] = 0
+    TUCK_POSITION['right_j3'] = 1.5
+    TUCK_POSITION['right_j4'] = 0
+    TUCK_POSITION['right_j5'] = -1
+    TUCK_POSITION['right_j6'] = 1.7
+    
+
+
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
+
+    while not np.allclose(list(curr.values()), list(TUCK_POSITION.values()), atol=0.05):
+        limb.set_joint_positions(TUCK_POSITION)
+        time.sleep(0.001)
+        curr = limb.joint_angles()
+
     #Custom Tuck Position
     TUCK_POSITION = {}
     TUCK_POSITION['right_j0'] = 0
@@ -283,12 +339,7 @@ def throw(side):
     TUCK_POSITION['right_j4'] = 0
     TUCK_POSITION['right_j5'] = -1
     TUCK_POSITION['right_j6'] = 1.7
-    global box_position
-    print(box_position)
-    # detect_ball("right")
-    box_position  = lookup_tag(12) 
-    print(box_position)
-    return
+    
 
 
     limb.set_joint_position_speed(0.3)
@@ -354,21 +405,21 @@ def throw(side):
         else:
             d = {}
             d['right_j0'] = 0.5 
-            d['right_j1'] = -0.4 
+            d['right_j1'] = -0.2
             d['right_j2'] = 0 
-            d['right_j3'] = 1.8 
+            d['right_j3'] = 1.8
             d['right_j4'] = 0 
-            d['right_j5'] = 2.4
+            d['right_j5'] = 2.9
             d['right_j6'] = 1.7
     
     else:
         d = {}
         d['right_j0'] = 0.5 
-        d['right_j1'] = -0.4 
+        d['right_j1'] = -0.2
         d['right_j2'] = 0 
-        d['right_j3'] = 1.8 
+        d['right_j3'] = 1.8
         d['right_j4'] = 0 
-        d['right_j5'] = 2.4
+        d['right_j5'] = 2.9
         d['right_j6'] = 1.7
 
 
@@ -382,7 +433,57 @@ def throw(side):
         limb.set_joint_positions(d)
         time.sleep(0.001)
         curr = limb.joint_angles()
+
+
+    global box_position
+    # box_position  =[1.19341689, 0.6006508 , 0.10391288] 
+    # detect_ball("right")
     # detect_box()
+    print("BOX: ", box_position)
+
+    box_position  = lookup_tag(1) 
+    print("BOX: ", box_position)
+
+    current_angle = limb.joint_angle('right_j0')
+    if box_position is not None:
+        target_angle = math.atan((box_position[1]+0.1)/ (box_position[0]-0.1)) 
+        # target_angle =current_angle - angle
+    else:
+        return
+
+    print("TARGET:", target_angle)
+
+    print("CURRENT:", current_angle)
+    # target_angle = max(current_angle - 0.3, min(current_angle + 0.3, target_angle))
+    target_angle = max(0, min(target_angle, 0.9)) - 0.25
+    print("NEW TARGET:", target_angle)
+
+    limb.set_joint_position_speed(0.1)
+
+    while abs(target_angle -current_angle)>0.01:
+        limb.set_joint_positions({'right_j0': target_angle})
+        current_angle = limb.joint_angle('right_j0')
+    
+    rospy.sleep(1.0)
+    d = {}  
+    d['right_j0'] = current_angle
+    d['right_j1'] = -0.4
+    d['right_j2'] = 0 
+    d['right_j3'] = 1.8
+    d['right_j4'] = 0 
+    d['right_j5'] = 2.4
+    d['right_j6'] = 1.7
+
+    r = rospy.Rate(10) # 10hz
+
+    limb.set_joint_position_speed(0.3)
+    curr = limb.joint_angles()
+
+    while not np.allclose(list(curr.values()), list(d.values()), atol=0.05):
+        limb.set_joint_positions(d)
+        time.sleep(0.001)
+        curr = limb.joint_angles()
+
     
     
     ### THROW BALL ###
@@ -412,14 +513,21 @@ def throw(side):
 
     #Perform Throw
     count = 0
-    limb.set_joint_position_speed(1.0)
-    while count<330:
+    limb.set_joint_position_speed(1)
+    while count<350:
         limb.set_joint_velocities(velocity)
         time.sleep(0.001)
         count+=1
     toss_position = limb.endpoint_pose()['position']
     toss_velocity  =limb.endpoint_pose()['orientation']
     right_gripper.open()
+
+    count = 0
+    limb.set_joint_position_speed(1)
+    while count<5:
+        limb.set_joint_velocities(velocity)
+        time.sleep(0.001)
+        count+=1
     rospy.sleep(3.0)
     ball_position = "FINISHED"
     # detect_box("right")
@@ -517,7 +625,7 @@ class CameraDisplay:
         
 
 def detect_box():
-    sub = rospy.Subscriber("/io/internal_camera/head_camera/image_raw", Image, image_callback_box)
+    sub = rospy.Subscriber("/io/internal_camera/right_hand_camera/image_raw", Image, image_callback_box)
     rospy.sleep(3.0)
     sub.unregister()
     return box_position
@@ -547,6 +655,8 @@ def image_callback_box(msg):
     upper = np.array([130, 255, 255])  # Upper bound of color (adjust as needed)
     lower = np.array([35,50,50])  # Lower bound of color (adjust as needed)
     upper = np.array([85, 255, 255])  # Upper bound of color (adjust as needed)
+    lower = np.array([140, 100, 100])  # Lower bound of color (adjust as needed)
+    upper = np.array([180, 255, 50]) 
     
     
    
@@ -564,7 +674,7 @@ def image_callback_box(msg):
     # Loop through each contour and find the bounding rectangle and center
     for contour in contours:
         # Skip small contours (you can adjust the area threshold)
-        if cv2.contourArea(contour) < 1000:  # Adjust the area threshold as needed
+        if 30 < cv2.contourArea(contour) < 50:  # Adjust the area threshold as needed
             continue
 
         # Get the bounding rectangle
